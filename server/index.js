@@ -11,6 +11,12 @@ const io = new Server(server, {
 });
 
 app.use(express.json());
+
+// Explicitly serve socket.io client
+app.get('/socket.io/socket.io.js', (req, res) => {
+  res.sendFile(require.resolve('socket.io/client-dist/socket.io.js'));
+});
+
 app.use(express.static(path.join(__dirname, '../client/public')));
 
 const rooms = new Map();
@@ -103,4 +109,4 @@ io.on('connection', (socket) => {
 app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size }));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Droply server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Nexus server running on port ${PORT}`));
