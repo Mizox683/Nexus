@@ -27,18 +27,19 @@ class Droply {
   }
 
   async connect(deviceName, deviceType, pin = null) {
+    const roomCode = await getLocalRoomCode();
     this.socket = io(SERVER_URL);
 
     this.socket.on('connect', () => {
-      this.socket.emit('join', { name: deviceName, type: deviceType, pin });
+      this.socket.emit('join', { name: deviceName, type: deviceType, pin, roomCode });
     });
 
-    this.socket.on('room:joined', ({ deviceId, subnet, trusted, devices }) => {
+    this.socket.on('room:joined', ({ deviceId, roomCode, trusted, devices }) => {
       this.deviceId = deviceId;
-      this.subnet = subnet;
+      this.subnet = roomCode;
       this.trusted = trusted;
       devices.forEach(d => { if (d.id !== deviceId) this.devices.set(d.id, d); });
-      this.emit('ready', { deviceId, subnet, trusted, devices: [...this.devices.values()] });
+      this.emit('ready', { deviceId, subnet: roomCode, trusted, devices: [...this.devices.values()] });
     });
 
     this.socket.on('room:device-joined', (device) => {
@@ -296,3 +297,33 @@ class Droply {
 }
 
 window.Droply = Droply;
+
+// ── Room code detection ───────────────────────────────────────────
+// Gets local IP via WebRTC and derives a room code from the subnet
+async function getLocalRoomCode() {
+  return new Promise((resolve) => {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('');
+    pc.createOffer().then(o => pc.setLocalDescription(o));
+    pc.onicecandidate = (e) => {
+      if (!e || !e.candidate) return;
+      const match = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+      pc.close();
+      if (match) {
+        // Hash the subnet into a short room code
+        const subnet = match[1];
+        let hash = 0;
+        for (let i = 0; i < subnet.length; i++) {
+          hash = ((hash << 5) - hash) + subnet.charCodeAt(i);
+          hash |= 0;
+        }
+        resolve('room-' + Math.abs(hash).toString(36));
+      } else {
+        resolve('room-local');
+      }
+    };
+    setTimeout(() => resolve('room-local'), 3000);
+  });
+}
+
+window.getLocalRoomCode = getLocalRoomCode;
