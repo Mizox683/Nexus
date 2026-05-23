@@ -12,58 +12,52 @@ const io = new Server(server, {
 
 app.use(express.json());
 
-// Explicitly serve socket.io client
 app.get('/socket.io/socket.io.js', (req, res) => {
   res.sendFile(require.resolve('socket.io/client-dist/socket.io.js'));
 });
 
 app.use(express.static(path.join(__dirname, '../client/public')));
 
+// rooms: { [roomCode]: { devices: Map<socketId, deviceInfo> , pin: string|null } }
 const rooms = new Map();
 
-function getSubnet(ip) {
-  const clean = ip.replace('::ffff:', '');
-  if (clean === '::1' || clean === '127.0.0.1') return 'localhost';
-  const parts = clean.split('.');
-  if (parts.length === 4) return parts.slice(0, 3).join('.');
-  return clean;
+function getRoom(code) {
+  if (!rooms.has(code)) rooms.set(code, { devices: new Map(), pin: null });
+  return rooms.get(code);
 }
 
-function getRoom(subnet) {
-  if (!rooms.has(subnet)) rooms.set(subnet, { devices: new Map(), pin: null });
-  return rooms.get(subnet);
-}
-
-function getRoomDeviceList(subnet) {
-  const room = getRoom(subnet);
-  return Array.from(room.devices.values()).map(d => ({
+function getRoomDeviceList(code) {
+  return Array.from(getRoom(code).devices.values()).map(d => ({
     id: d.id, name: d.name, type: d.type, trusted: d.trusted,
   }));
 }
 
 io.on('connection', (socket) => {
-  const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-  const ip = rawIp.split(',')[0].trim();
-  const subnet = getSubnet(ip);
+  let currentRoom = null;
 
-  console.log(`[+] ${socket.id} connected from ${ip} (subnet: ${subnet})`);
+  console.log(`[+] ${socket.id} connected`);
 
-  socket.on('join', ({ name, type, pin }) => {
-    const room = getRoom(subnet);
+  // Client sends its local network room code (derived from local IP in browser)
+  socket.on('join', ({ name, type, pin, roomCode }) => {
+    const code = roomCode || 'default';
+    currentRoom = code;
+
+    const room = getRoom(code);
     const trusted = room.pin ? room.pin === pin : true;
 
-    const device = { id: socket.id, name: name || 'Unknown Device', type: type || 'unknown', trusted, subnet, ip };
+    const device = { id: socket.id, name: name || 'Unknown Device', type: type || 'unknown', trusted };
     room.devices.set(socket.id, device);
-    socket.join(subnet);
+    socket.join(code);
 
-    socket.emit('room:joined', { deviceId: socket.id, subnet, trusted, devices: getRoomDeviceList(subnet) });
-    socket.to(subnet).emit('room:device-joined', { id: device.id, name: device.name, type: device.type, trusted: device.trusted });
+    socket.emit('room:joined', { deviceId: socket.id, roomCode: code, trusted, devices: getRoomDeviceList(code) });
+    socket.to(code).emit('room:device-joined', { id: device.id, name: device.name, type: device.type, trusted: device.trusted });
 
-    console.log(`[room] ${device.name} joined subnet ${subnet} (trusted: ${trusted})`);
+    console.log(`[room:${code}] ${device.name} joined (trusted: ${trusted})`);
   });
 
   socket.on('room:set-pin', ({ pin }) => {
-    const room = getRoom(subnet);
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
     const device = room.devices.get(socket.id);
     if (!device || !device.trusted) return socket.emit('error', { msg: 'Not trusted' });
     room.pin = pin;
@@ -95,14 +89,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const room = getRoom(subnet);
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
     const device = room.devices.get(socket.id);
     if (device) {
       room.devices.delete(socket.id);
-      socket.to(subnet).emit('room:device-left', { id: socket.id });
-      console.log(`[-] ${device.name} left subnet ${subnet}`);
+      socket.to(currentRoom).emit('room:device-left', { id: socket.id });
+      console.log(`[-] ${device.name} left room:${currentRoom}`);
     }
-    if (room.devices.size === 0) rooms.delete(subnet);
+    if (room.devices.size === 0) rooms.delete(currentRoom);
   });
 });
 
