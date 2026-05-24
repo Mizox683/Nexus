@@ -2,9 +2,34 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
+
+// ── Persistence ───────────────────────────────────────────────────
+const DB_PATH = path.join('/tmp', 'nexus-devices.json');
+
+function saveDevices() {
+  try {
+    const data = {};
+    registeredDevices.forEach((v, k) => { data[k] = v; });
+    fs.writeFileSync(DB_PATH, JSON.stringify(data));
+  } catch(e) { console.error('Save error:', e.message); }
+}
+
+function loadDevices() {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+      Object.entries(data).forEach(([k, v]) => {
+        v.socketId = null; // all offline on restart
+        registeredDevices.set(k, v);
+      });
+      console.log(`[db] Loaded ${registeredDevices.size} registered devices`);
+    }
+  } catch(e) { console.error('Load error:', e.message); }
+}
 const io = new Server(server, {
   cors: { origin: '*' },
   maxHttpBufferSize: 1e8
@@ -22,6 +47,8 @@ const rooms = new Map();
 const registeredDevices = new Map();
 // pendingFiles: { [deviceKey]: [ {fromName, fileName, fileSize, chunks, meta} ] }
 const pendingFiles = new Map();
+
+loadDevices();
 
 function roomKey(code) { return code; }
 
@@ -63,6 +90,7 @@ io.on('connection', (socket) => {
     // Register device persistently
     currentDevKey = devKey(code, name);
     registeredDevices.set(currentDevKey, { name, type, roomCode: code, pin, socketId: socket.id });
+    saveDevices();
 
     socket.emit('room:joined', { deviceId: socket.id, roomCode: code, trusted, devices: getRoomDeviceList(code) });
     socket.to(code).emit('room:device-joined', { id: socket.id, name, type, trusted });
