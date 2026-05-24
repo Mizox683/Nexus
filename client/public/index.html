@@ -209,6 +209,29 @@
 
     #file-input { display: none; }
 
+
+    /* ── Media previews ── */
+    .media-bubble {
+      max-width: 280px; border-radius: 14px; overflow: hidden;
+    }
+    .media-bubble.out { background: var(--accent); border-bottom-right-radius: 4px; }
+    .media-bubble.in { background: var(--surface2); border-bottom-left-radius: 4px; }
+    .media-preview {
+      width: 100%; max-height: 220px; object-fit: cover;
+      display: block; cursor: pointer; border-radius: 0;
+    }
+    .media-meta { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px 2px; }
+    .file-name-sm { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .file-size-sm { font-size: 11px; opacity: 0.7; flex-shrink: 0; }
+    .file-actions { display: flex; gap: 8px; padding: 4px 12px 10px; }
+    .file-action-btn {
+      flex: 1; padding: 6px; border-radius: 6px; border: none;
+      background: rgba(255,255,255,0.2); color: white;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s;
+    }
+    .file-action-btn:hover { background: rgba(255,255,255,0.3); }
+    .media-bubble.in .file-action-btn { background: var(--surface3); color: var(--text); }
+    .media-bubble.in .file-action-btn:hover { background: var(--border2); }
     /* scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -351,6 +374,8 @@
     return '📎';
   }
 
+  loadConversations();
+
   async function startNexus() {
     myName = document.getElementById('device-name').value.trim() || 'Unknown Device';
     const type = document.getElementById('device-type').value;
@@ -455,6 +480,9 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  function isImage(name) { return /\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i.test(name||''); }
+  function isVideo(name) { return /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(name||''); }
+
   function buildBubble(m) {
     const dir = m.direction;
     if (m.type === 'text') {
@@ -463,20 +491,70 @@
       </div>`;
     }
     if (m.type === 'file') {
-      const dlBtn = m.url ? `<div class="file-dl" onclick="downloadFile('${m.url}','${esc(m.fileName)}')">Download</div>` : '';
-      const prog = m.progress < 100 ? `<div class="file-progress"><div class="file-progress-fill" id="prog-${m.id}" style="width:${m.progress}%"></div></div>` : '';
+      const done = m.progress >= 100 || m.url;
+      const prog = !done ? `<div class="file-progress"><div class="file-progress-fill" id="prog-${m.id}" style="width:${m.progress||0}%"></div></div>` : '';
+      const actions = done && m.url ? `
+        <div class="file-actions">
+          <button class="file-action-btn" onclick="openFile('${m.url}','${esc(m.fileName)}')">Open</button>
+          <button class="file-action-btn" onclick="downloadFile('${m.url}','${esc(m.fileName)}')">Download</button>
+        </div>` : '';
+
+      let preview = '';
+      if (done && m.url) {
+        if (isImage(m.fileName)) {
+          preview = `<img src="${m.url}" class="media-preview" onclick="openFile('${m.url}','${esc(m.fileName)}')" />`;
+        } else if (isVideo(m.fileName)) {
+          preview = `<video src="${m.url}" class="media-preview" controls preload="metadata"></video>`;
+        }
+      }
+
+      if (preview) {
+        return `<div class="bubble-row ${dir}" id="bubble-${m.id}">
+          <div class="media-bubble ${dir}">
+            ${preview}
+            <div class="media-meta">
+              <span class="file-name-sm">${esc(m.fileName)}</span>
+              <span class="file-size-sm">${fmt(m.fileSize)}</span>
+            </div>
+            ${actions}
+            <div class="bubble-time">${fmtTime(m.ts)}</div>
+          </div>
+        </div>`;
+      }
+
       return `<div class="bubble-row ${dir}" id="bubble-${m.id}">
         <div class="file-bubble ${dir}">
           <div class="file-icon">${fileIcon(m.fileName)}</div>
           <div class="file-info">
             <div class="file-name">${esc(m.fileName)}</div>
-            <div class="file-size">${fmt(m.fileSize)}${m.progress < 100 ? ' · ' + m.progress + '%' : ''}</div>
-            ${prog}${dlBtn}
+            <div class="file-size">${fmt(m.fileSize)}${!done ? ' · ' + (m.progress||0) + '%' : ''}</div>
+            ${prog}${actions}
           </div>
         </div>
       </div>`;
     }
     return '';
+  }
+
+  function saveConversations() {
+    const data = {};
+    conversations.forEach((conv, id) => {
+      // Only save metadata, not blob URLs (they don't persist)
+      data[id] = {
+        device: conv.device,
+        messages: conv.messages.map(m => ({...m, url: m.url && m.url.startsWith('blob:') ? null : m.url}))
+      };
+    });
+    try { localStorage.setItem('nexus:conversations', JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadConversations() {
+    try {
+      const data = JSON.parse(localStorage.getItem('nexus:conversations') || '{}');
+      Object.entries(data).forEach(([id, conv]) => {
+        conversations.set(id, conv);
+      });
+    } catch(e) {}
   }
 
   function addMessage(deviceId, msg) {
@@ -488,6 +566,7 @@
       el.insertAdjacentHTML('beforeend', buildBubble(msg));
       el.scrollTop = el.scrollHeight;
     }
+    saveConversations();
     renderConvList();
   }
 
@@ -528,6 +607,10 @@
   function downloadFile(url, name) {
     const a = document.createElement('a');
     a.href = url; a.download = name; a.click();
+  }
+
+  function openFile(url, name) {
+    window.open(url, '_blank');
   }
 
   // Send text message
