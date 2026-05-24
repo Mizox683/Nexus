@@ -141,6 +141,18 @@ io.on('connection', (socket) => {
   });
 
   // Text messages
+  socket.on('remote:command', ({ targetId, cmd, data }) => {
+    io.to(targetId).emit('remote:command', { fromId: socket.id, cmd, data });
+  });
+
+  socket.on('remote:screen', ({ targetId, frame }) => {
+    io.to(targetId).emit('remote:screen', { frame });
+  });
+
+  socket.on('remote:input', ({ targetId, type, data }) => {
+    io.to(targetId).emit('remote:input', { type, data });
+  });
+
   socket.on('text:send', ({ targetId, text, msgId }) => {
     io.to(targetId).emit('text:receive', { fromId: socket.id, text, msgId });
   });
