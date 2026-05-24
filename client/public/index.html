@@ -390,6 +390,20 @@
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('sidebar-myname').textContent = myName;
     await droply.connect(myName, type, pin);
+
+    droply.on('room-rejected', ({ reason }) => {
+      document.getElementById('app-screen').style.display = 'none';
+      document.getElementById('setup-screen').style.display = 'flex';
+      document.getElementById('pin-error').textContent = reason === 'Wrong PIN' ? 'Incorrect PIN. Try again.' : 'PIN required to join.';
+      document.getElementById('pin-error').style.display = 'block';
+      document.getElementById('room-pin').value = '';
+    });
+
+    droply.on('text-received', ({ fromId, text, msgId }) => {
+      const dev = droply.devices.get(fromId);
+      if (dev) ensureConversation(dev);
+      addMessage(fromId, { id: msgId || crypto.randomUUID(), type: 'text', direction: 'in', text, ts: Date.now() });
+    });
   }
 
   droply.on('ready', ({ subnet, trusted, devices }) => {
@@ -635,20 +649,7 @@
     if (selectedDeviceId) document.getElementById('send-btn').disabled = false;
   }
 
-  // Receive text
-  droply.socket && droply.socket.on('text:receive', ({ fromId, text, msgId }) => {
-    ensureConversation(droply.devices.get(fromId) || { id: fromId, name: 'Unknown', type: 'unknown' });
-    addMessage(fromId, { id: msgId, type: 'text', direction: 'in', text, ts: Date.now() });
-  });
 
-  // We need to hook text messages after connect
-  droply.on('ready', () => {
-    droply.socket.on('text:receive', ({ fromId, text, msgId }) => {
-      const dev = droply.devices.get(fromId);
-      if (dev) ensureConversation(dev);
-      addMessage(fromId, { id: msgId||crypto.randomUUID(), type: 'text', direction: 'in', text, ts: Date.now() });
-    });
-  });
 
   // File attach
   document.getElementById('file-input').addEventListener('change', e => {
@@ -721,8 +722,9 @@
     document.getElementById('sidebar-overlay').classList.remove('show');
   }
 
+  // SW disabled during development
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
   }
 </script>
 </body>
