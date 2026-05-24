@@ -3,301 +3,216 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Droply</title>
+  <title>Nexus</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0a0a0a" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg: #0a0a0a;
       --surface: #141414;
-      --surface2: #1c1c1c;
-      --border: rgba(255,255,255,0.08);
-      --border2: rgba(255,255,255,0.14);
+      --surface2: #1e1e1e;
+      --surface3: #252525;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
       --text: #f0f0f0;
-      --muted: #707070;
+      --muted: #666;
+      --muted2: #999;
       --accent: #3b82f6;
-      --accent-dim: rgba(59,130,246,0.15);
+      --accent-dim: rgba(59,130,246,0.18);
       --green: #22c55e;
       --green-dim: rgba(34,197,94,0.15);
-      --red: #ef4444;
-      --red-dim: rgba(239,68,68,0.15);
-      --radius: 10px;
-      --radius-sm: 6px;
+      --radius: 18px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
     }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; -webkit-font-smoothing: antialiased; }
 
-    html, body { height: 100%; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ── Layout ── */
-    #setup-screen, #app-screen { min-height: 100vh; }
-
+    /* ── Setup ── */
     #setup-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
+      height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 28px;
     }
-
-    .setup-box {
-      width: 100%;
-      max-width: 400px;
-    }
-
-    .logo { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
-    .tagline { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
-
-    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-
+    .setup-box { width: 100%; max-width: 380px; }
+    .setup-logo { font-size: 32px; font-weight: 700; letter-spacing: -1px; margin-bottom: 4px; }
+    .setup-tag { color: var(--muted2); font-size: 14px; margin-bottom: 36px; }
+    .field-label { font-size: 12px; color: var(--muted2); margin-bottom: 6px; display: block; }
     input, select {
-      width: 100%;
-      padding: 11px 14px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-size: 15px;
-      margin-bottom: 14px;
-      outline: none;
-      transition: border-color 0.15s;
-      -webkit-appearance: none;
+      width: 100%; padding: 13px 16px; background: var(--surface);
+      border: 1px solid var(--border2); border-radius: var(--radius-sm);
+      color: var(--text); font-size: 15px; margin-bottom: 14px;
+      outline: none; -webkit-appearance: none; transition: border-color 0.15s;
     }
-
     input:focus, select:focus { border-color: var(--accent); }
-
     select option { background: #1a1a1a; }
-
-    .btn {
-      width: 100%;
-      padding: 13px;
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s;
+    .btn-primary {
+      width: 100%; padding: 14px; background: var(--accent); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 15px;
+      font-weight: 600; cursor: pointer; transition: opacity 0.15s;
     }
-    .btn:hover { opacity: 0.9; }
-    .btn:active { opacity: 0.8; }
-    .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-weight: 500; }
-    .btn.danger { background: var(--red); }
-    .btn.sm { width: auto; padding: 7px 14px; font-size: 13px; font-weight: 500; border-radius: var(--radius-sm); }
-    .btn.green { background: var(--green); }
+    .btn-primary:hover { opacity: 0.88; }
 
-    /* ── App layout ── */
-    #app-screen { display: none; flex-direction: column; }
+    /* ── App shell ── */
+    #app-screen { display: none; height: 100vh; flex-direction: row; }
 
+    /* ── Sidebar overlay (menu) ── */
+    #sidebar-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 40; transition: opacity 0.2s;
+    }
+    #sidebar-overlay.show { display: block; }
+    #sidebar {
+      position: fixed; top: 0; left: -280px; bottom: 0; width: 280px;
+      background: var(--surface); border-right: 1px solid var(--border2);
+      z-index: 50; transition: left 0.25s cubic-bezier(.4,0,.2,1);
+      display: flex; flex-direction: column;
+    }
+    #sidebar.open { left: 0; }
+    .sidebar-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); }
+    .sidebar-title { font-size: 18px; font-weight: 700; }
+    .sidebar-sub { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+    .sidebar-section { padding: 14px 20px 8px; }
+    .sidebar-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+    .sidebar-device {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s;
+    }
+    .sidebar-device:hover { background: var(--surface2); }
+    .sd-icon { width: 34px; height: 34px; background: var(--surface3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .sd-name { font-size: 14px; font-weight: 500; }
+    .sd-type { font-size: 12px; color: var(--muted2); }
+    .sidebar-info { padding: 14px 20px; margin-top: auto; border-top: 1px solid var(--border); }
+    .info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .info-label { color: var(--muted2); }
+    .info-val { color: var(--text); font-weight: 500; }
+    .trust-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid; }
+    .trust-pill.trusted { border-color: rgba(34,197,94,0.4); color: var(--green); }
+    .trust-pill.guest { border-color: rgba(234,179,8,0.4); color: #eab308; }
+
+    /* ── Main area ── */
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    /* ── Conversations list ── */
+    #conv-screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: var(--bg);
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0;
+    }
+    .hamburger { background: none; border: none; color: var(--text); cursor: pointer; padding: 4px; border-radius: 6px; font-size: 20px; line-height: 1; }
+    .topbar-title { font-size: 18px; font-weight: 700; flex: 1; }
+    .online-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+
+    .conv-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .conv-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; cursor: pointer; transition: background 0.12s;
       border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
     }
-
-    .topbar-left { display: flex; align-items: center; gap: 12px; }
-    .topbar-logo { font-size: 20px; font-weight: 700; }
-    .pill {
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      color: var(--muted);
+    .conv-item:hover, .conv-item.active { background: var(--surface); }
+    .conv-avatar {
+      width: 46px; height: 46px; border-radius: 50%;
+      background: var(--surface3); display: flex; align-items: center;
+      justify-content: center; font-size: 20px; flex-shrink: 0;
     }
-    .pill.trusted { border-color: rgba(34,197,94,0.4); color: var(--green); }
-    .pill.guest { border-color: rgba(234,179,8,0.4); color: #eab308; }
+    .conv-info { flex: 1; min-width: 0; }
+    .conv-name { font-weight: 600; font-size: 15px; }
+    .conv-last { font-size: 13px; color: var(--muted2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .conv-time { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+    .conv-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--muted); font-size: 14px; gap: 8px; padding: 40px; text-align: center; }
+    .conv-empty-icon { font-size: 40px; }
 
-    .subnet-label { font-size: 12px; color: var(--muted); }
-
-    /* ── Main content ── */
-    .content { flex: 1; padding: 20px; max-width: 700px; width: 100%; margin: 0 auto; }
-
-    /* ── Section ── */
-    .section { margin-bottom: 24px; }
-    .section-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 10px;
-      font-weight: 600;
+    /* ── Chat screen ── */
+    #chat-screen { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    .chat-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0;
     }
+    .back-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 22px; padding: 2px 6px; }
+    .chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface3); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .chat-device-name { font-weight: 600; font-size: 16px; }
+    .chat-device-sub { font-size: 12px; color: var(--muted2); }
 
-    /* ── Drop zone ── */
-    #dropzone {
-      border: 1.5px dashed var(--border2);
-      border-radius: var(--radius);
-      padding: 36px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      margin-bottom: 24px;
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+
+    /* ── Bubbles ── */
+    .bubble-row { display: flex; }
+    .bubble-row.out { justify-content: flex-end; }
+    .bubble-row.in { justify-content: flex-start; }
+    .bubble {
+      max-width: 72%; padding: 10px 14px; border-radius: 18px;
+      font-size: 14px; line-height: 1.45; word-break: break-word;
     }
-    #dropzone:hover, #dropzone.drag-over {
-      border-color: var(--accent);
-      background: var(--accent-dim);
+    .bubble.out { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .bubble.in { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; }
+    .bubble-time { font-size: 11px; opacity: 0.6; margin-top: 4px; }
+    .bubble.out .bubble-time { text-align: right; }
+
+    /* File bubble */
+    .file-bubble {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 14px; max-width: 280px; cursor: pointer;
     }
-    .drop-icon { font-size: 32px; margin-bottom: 8px; }
-    .drop-text { font-size: 15px; color: var(--text); margin-bottom: 4px; }
-    .drop-hint { font-size: 13px; color: var(--muted); }
+    .file-bubble.out { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .file-bubble.in { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; }
+    .file-icon { font-size: 28px; flex-shrink: 0; }
+    .file-info { min-width: 0; }
+    .file-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .file-size { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+    .file-progress { height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .file-progress-fill { height: 100%; background: white; border-radius: 2px; transition: width 0.2s; }
+    .file-dl { font-size: 12px; margin-top: 4px; opacity: 0.85; text-decoration: underline; cursor: pointer; }
+
+    /* ── Compose bar ── */
+    .compose {
+      display: flex; align-items: flex-end; gap: 8px;
+      padding: 10px 12px; border-top: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0;
+    }
+    .compose-attach {
+      width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border2);
+      background: var(--surface2); color: var(--text); font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+    }
+    .compose-attach:hover { background: var(--surface3); }
+    .compose-input-wrap { flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 9px 14px; min-height: 38px; display: flex; align-items: center; }
+    .compose-input { background: none; border: none; outline: none; color: var(--text); font-size: 15px; width: 100%; resize: none; font-family: inherit; line-height: 1.4; max-height: 120px; overflow-y: auto; }
+    .compose-input::placeholder { color: var(--muted); }
+    .compose-send {
+      width: 38px; height: 38px; border-radius: 50%; border: none;
+      background: var(--accent); color: white; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: opacity 0.15s;
+    }
+    .compose-send:hover { opacity: 0.88; }
+    .compose-send:disabled { background: var(--surface3); opacity: 0.5; cursor: default; }
+
+    /* ── Incoming modal ── */
+    #incoming-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 60;
+      align-items: flex-end; justify-content: center; padding: 16px;
+    }
+    #incoming-overlay.show { display: flex; }
+    .incoming-sheet {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 20px; padding: 24px; width: 100%; max-width: 400px;
+    }
+    .incoming-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .incoming-info { font-size: 14px; color: var(--muted2); margin-bottom: 20px; line-height: 1.5; }
+    .incoming-btns { display: flex; gap: 10px; }
+    .btn-accept { flex: 1; padding: 13px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-reject { flex: 1; padding: 13px; background: var(--surface2); color: var(--text); border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 15px; font-weight: 500; cursor: pointer; }
+
     #file-input { display: none; }
 
-    /* ── Device list ── */
-    .device-item {
-      display: flex;
-      align-items: center;
-      padding: 13px 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      gap: 12px;
-    }
-    .device-item:hover { border-color: var(--border2); }
-    .device-item.selected { border-color: var(--accent); background: var(--accent-dim); }
-    .device-icon-wrap {
-      width: 38px; height: 38px;
-      background: var(--surface2);
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-    .device-info { flex: 1; min-width: 0; }
-    .device-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .device-sub { font-size: 12px; color: var(--muted); }
-    .device-send-btn {
-      padding: 6px 14px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border2);
-      background: transparent;
-      color: var(--text);
-      font-size: 13px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background 0.15s;
-    }
-    .device-send-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
-
-    .empty-state { color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
-
-    /* ── Transfer items ── */
-    .transfer-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 13px 16px;
-      margin-bottom: 8px;
-    }
-    .transfer-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-    .transfer-name { font-weight: 600; font-size: 14px; word-break: break-all; flex: 1; }
-    .transfer-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .transfer-dir {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 20px;
-      flex-shrink: 0;
-    }
-    .dir-in { background: var(--green-dim); color: var(--green); }
-    .dir-out { background: var(--accent-dim); color: var(--accent); }
-    .dir-done { background: rgba(255,255,255,0.06); color: var(--muted); }
-
-    .progress-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
-    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.2s; }
-    .fill-blue { background: var(--accent); }
-    .fill-green { background: var(--green); }
-
-    .transfer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-    /* ── History ── */
-    .history-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 11px 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-bottom: 6px;
-    }
-    .history-icon {
-      width: 32px; height: 32px;
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-      flex-shrink: 0;
-    }
-    .h-in { background: var(--green-dim); }
-    .h-out { background: var(--accent-dim); }
-    .history-info { flex: 1; min-width: 0; }
-    .history-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .history-meta { font-size: 12px; color: var(--muted); }
-    .history-dl { background: transparent; border: 1px solid var(--border2); color: var(--text); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; text-decoration: none; }
-    .history-dl:hover { background: var(--surface2); }
-
-    /* ── Incoming modal (full-page overlay, no fixed) ── */
-    #modal-overlay {
-      display: none;
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.75);
-      z-index: 50;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    #modal-overlay.show { display: flex; }
-
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius);
-      padding: 28px 24px;
-      width: 100%;
-      max-width: 360px;
-    }
-    .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
-    .modal p { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
-    .modal-btns { display: flex; gap: 10px; }
-    .modal-btns .btn { margin: 0; }
-
-    /* ── PIN section ── */
-    .pin-row { display: flex; gap: 8px; }
-    .pin-row input { margin-bottom: 0; flex: 1; }
-    .pin-row .btn { width: auto; padding: 11px 16px; }
-
-    /* ── Responsive ── */
-    @media (min-width: 600px) {
-      .content { padding: 28px 24px; }
-      #dropzone { padding: 48px 20px; }
-    }
-
-    /* ── Wrap everything in relative for modal ── */
-    #app-screen { position: relative; }
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -305,309 +220,421 @@
 <!-- Setup -->
 <div id="setup-screen">
   <div class="setup-box">
-    <div class="logo">Droply</div>
-    <div class="tagline">Fast local file transfer — no internet needed</div>
-
-    <label for="device-name">Your name</label>
+    <div class="setup-logo">Nexus</div>
+    <div class="setup-tag">Local file sharing — fast &amp; private</div>
+    <label class="field-label">Your name</label>
     <input id="device-name" placeholder="e.g. Amir's iPhone" autocomplete="off" />
-
-    <label for="device-type">Device type</label>
+    <label class="field-label">Device type</label>
     <select id="device-type">
-      <option value="phone">Phone</option>
-      <option value="pc">PC / Laptop</option>
-      <option value="tablet">Tablet</option>
-      <option value="tv">TV</option>
+      <option value="phone">📱 Phone</option>
+      <option value="pc">💻 PC / Laptop</option>
+      <option value="tablet">📲 Tablet</option>
+      <option value="tv">📺 TV</option>
     </select>
-
-    <label for="room-pin">Room PIN <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-    <input id="room-pin" type="password" placeholder="Enter PIN if room has one" />
-
-    <button class="btn" onclick="startDrofly()">Join Room</button>
+    <label class="field-label">Room PIN <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+    <input id="room-pin" type="password" placeholder="Leave empty if none" />
+    <button class="btn-primary" onclick="startNexus()">Join Room</button>
   </div>
 </div>
 
 <!-- App -->
 <div id="app-screen">
+  <div id="main">
 
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="topbar-left">
-      <span class="topbar-logo">Droply</span>
-      <span id="trust-pill" class="pill">Guest</span>
-    </div>
-    <span id="subnet-label" class="subnet-label"></span>
-  </div>
-
-  <!-- Content -->
-  <div class="content">
-
-    <!-- Drop zone -->
-    <div id="dropzone" onclick="document.getElementById('file-input').click()">
-      <div class="drop-icon">⬆</div>
-      <div class="drop-text">Drop files here or tap to select</div>
-      <div class="drop-hint" id="drop-hint">Select a device below first</div>
-    </div>
-    <input type="file" id="file-input" multiple />
-
-    <!-- Devices -->
-    <div class="section">
-      <div class="section-title">Devices in room</div>
-      <div id="device-list"><div class="empty-state">Waiting for other devices…</div></div>
+    <!-- Conversations list -->
+    <div id="conv-screen">
+      <div class="topbar">
+        <button class="hamburger" onclick="openSidebar()">☰</button>
+        <span class="topbar-title">Nexus</span>
+        <span class="online-dot" id="online-dot" style="display:none"></span>
+      </div>
+      <div class="conv-list" id="conv-list">
+        <div class="conv-empty">
+          <div class="conv-empty-icon">📡</div>
+          <div>Waiting for devices on your network…</div>
+          <div style="font-size:12px;color:var(--muted)">Open Nexus on another device</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Active transfers -->
-    <div class="section" id="active-section" style="display:none">
-      <div class="section-title">Active transfers</div>
-      <div id="active-transfers"></div>
-    </div>
-
-    <!-- History -->
-    <div class="section">
-      <div class="section-title">History</div>
-      <div id="history-list"><div class="empty-state">No transfers yet</div></div>
-    </div>
-
-    <!-- Settings -->
-    <div class="section" id="pin-section" style="display:none">
-      <div class="section-title">Room PIN</div>
-      <div class="pin-row">
-        <input id="pin-input" type="password" placeholder="Set a PIN for this room" />
-        <button class="btn" onclick="setPin()">Set</button>
+    <!-- Chat screen -->
+    <div id="chat-screen">
+      <div class="chat-topbar">
+        <button class="back-btn" onclick="goBack()">‹</button>
+        <div class="chat-avatar" id="chat-avatar">📱</div>
+        <div>
+          <div class="chat-device-name" id="chat-name">Device</div>
+          <div class="chat-device-sub" id="chat-sub">phone</div>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="compose">
+        <button class="compose-attach" onclick="document.getElementById('file-input').click()" title="Attach file">＋</button>
+        <div class="compose-input-wrap">
+          <textarea class="compose-input" id="compose-text" placeholder="Message" rows="1"
+            oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+        </div>
+        <button class="compose-send" id="send-btn" onclick="sendMessage()" disabled>➤</button>
       </div>
     </div>
 
   </div>
 
-  <!-- Incoming modal (inside app-screen so no fixed needed) -->
-  <div id="modal-overlay">
-    <div class="modal">
-      <h3>Incoming file</h3>
-      <p id="modal-info">Someone wants to send you a file.</p>
-      <div class="modal-btns">
-        <button class="btn green" onclick="handleAccept()">Accept</button>
-        <button class="btn secondary" onclick="handleReject()">Reject</button>
+  <!-- Sidebar -->
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Nexus</div>
+      <div class="sidebar-sub" id="sidebar-room">Connecting…</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Devices in room</div>
+      <div id="sidebar-devices"><div style="color:var(--muted);font-size:13px;padding:4px 0">No devices yet</div></div>
+    </div>
+    <div class="sidebar-info">
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span id="sidebar-trust" class="trust-pill guest">Guest</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">My name</span>
+        <span class="info-val" id="sidebar-myname">—</span>
       </div>
     </div>
   </div>
 
+  <!-- Incoming file sheet -->
+  <div id="incoming-overlay">
+    <div class="incoming-sheet">
+      <div class="incoming-title">Incoming file</div>
+      <div class="incoming-info" id="incoming-info">Someone wants to send you a file.</div>
+      <div class="incoming-btns">
+        <button class="btn-accept" onclick="handleAccept()">Accept</button>
+        <button class="btn-reject" onclick="handleReject()">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" multiple accept="*/*" />
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/droply.js"></script>
 <script>
   const droply = new Droply();
-  let selectedDevice = null;
-  let pendingIncoming = null;
-  const activeTransfers = new Map();
-
   const deviceEmoji = { phone: '📱', pc: '💻', tablet: '📲', tv: '📺', unknown: '🖥️' };
 
-  function fmt(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-    return (bytes / 1073741824).toFixed(2) + ' GB';
+  // State
+  let myName = '';
+  let selectedDeviceId = null;
+  let pendingIncoming = null;
+  // conversations: { [deviceId]: { device, messages: [] } }
+  const conversations = new Map();
+  // activeTransfers: { [transferId]: { bubbleId, direction } }
+  const activeTransfers = new Map();
+
+  function fmt(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+    return (b/1073741824).toFixed(2) + ' GB';
+  }
+  function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fileIcon(name) {
+    const ext = (name||'').split('.').pop().toLowerCase();
+    if (['mp4','mov','avi','mkv','webm'].includes(ext)) return '🎬';
+    if (['jpg','jpeg','png','gif','webp','heic'].includes(ext)) return '🖼️';
+    if (['mp3','wav','aac','m4a','ogg'].includes(ext)) return '🎵';
+    if (['pdf'].includes(ext)) return '📄';
+    if (['zip','rar','7z','tar','gz'].includes(ext)) return '🗜️';
+    return '📎';
   }
 
-  function fmtTime(ts) {
-    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function startDrofly() {
-    const name = document.getElementById('device-name').value.trim() || 'Unknown Device';
+  async function startNexus() {
+    myName = document.getElementById('device-name').value.trim() || 'Unknown Device';
     const type = document.getElementById('device-type').value;
     const pin = document.getElementById('room-pin').value.trim() || null;
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
-    document.getElementById('app-screen').style.flexDirection = 'column';
-    droply.connect(name, type, pin);
+    document.getElementById('sidebar-myname').textContent = myName;
+    await droply.connect(myName, type, pin);
   }
 
   droply.on('ready', ({ subnet, trusted, devices }) => {
-    document.getElementById('subnet-label').textContent = 'Network: ' + subnet;
-    const pill = document.getElementById('trust-pill');
-    pill.textContent = trusted ? 'Trusted' : 'Guest';
-    pill.className = 'pill ' + (trusted ? 'trusted' : 'guest');
-    if (trusted) document.getElementById('pin-section').style.display = 'block';
-    renderDevices(devices);
-    renderHistory();
+    document.getElementById('online-dot').style.display = 'inline-block';
+    document.getElementById('sidebar-room').textContent = 'Room: ' + subnet;
+    const tp = document.getElementById('sidebar-trust');
+    tp.textContent = trusted ? 'Trusted' : 'Guest';
+    tp.className = 'trust-pill ' + (trusted ? 'trusted' : 'guest');
+    devices.forEach(ensureConversation);
+    renderConvList();
+    renderSidebarDevices();
   });
 
-  droply.on('device-joined', () => renderDevices([...droply.devices.values()]));
+  droply.on('device-joined', (device) => {
+    ensureConversation(device);
+    renderConvList();
+    renderSidebarDevices();
+  });
+
   droply.on('device-left', ({ id }) => {
-    if (selectedDevice === id) { selectedDevice = null; updateDropHint(); }
-    renderDevices([...droply.devices.values()]);
+    renderConvList();
+    renderSidebarDevices();
   });
 
-  function renderDevices(devices) {
-    const el = document.getElementById('device-list');
-    if (!devices.length) {
-      el.innerHTML = '<div class="empty-state">No other devices in this room</div>';
+  function ensureConversation(device) {
+    if (!conversations.has(device.id)) {
+      conversations.set(device.id, { device, messages: [] });
+    }
+  }
+
+  function renderConvList() {
+    const el = document.getElementById('conv-list');
+    const devs = [...droply.devices.values()];
+    if (!devs.length) {
+      el.innerHTML = `<div class="conv-empty"><div class="conv-empty-icon">📡</div><div>Waiting for devices on your network…</div><div style="font-size:12px;color:var(--muted)">Open Nexus on another device</div></div>`;
       return;
     }
-    el.innerHTML = devices.map(d => `
-      <div class="device-item ${selectedDevice === d.id ? 'selected' : ''}" onclick="selectDevice('${d.id}')">
-        <div class="device-icon-wrap">${deviceEmoji[d.type] || '🖥️'}</div>
-        <div class="device-info">
-          <div class="device-name">${esc(d.name)}</div>
-          <div class="device-sub">${d.type}${d.trusted ? ' · trusted' : ' · guest'}</div>
+    el.innerHTML = devs.map(d => {
+      const conv = conversations.get(d.id);
+      const msgs = conv ? conv.messages : [];
+      const last = msgs.length ? msgs[msgs.length-1] : null;
+      const lastText = last ? (last.type === 'file' ? '📎 ' + last.fileName : last.text) : 'Tap to send files or messages';
+      const lastTime = last ? fmtTime(last.ts) : '';
+      return `<div class="conv-item ${selectedDeviceId === d.id ? 'active' : ''}" onclick="openChat('${d.id}')">
+        <div class="conv-avatar">${deviceEmoji[d.type]||'🖥️'}</div>
+        <div class="conv-info">
+          <div class="conv-name">${esc(d.name)}</div>
+          <div class="conv-last">${esc(lastText)}</div>
         </div>
-        <button class="device-send-btn" onclick="event.stopPropagation(); triggerSend('${d.id}')">Send</button>
-      </div>
-    `).join('');
+        ${lastTime ? `<div class="conv-time">${lastTime}</div>` : ''}
+      </div>`;
+    }).join('');
   }
 
-  function selectDevice(id) {
-    selectedDevice = id;
-    renderDevices([...droply.devices.values()]);
-    updateDropHint();
+  function renderSidebarDevices() {
+    const el = document.getElementById('sidebar-devices');
+    const devs = [...droply.devices.values()];
+    if (!devs.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">No devices yet</div>'; return; }
+    el.innerHTML = devs.map(d => `
+      <div class="sidebar-device" onclick="openChat('${d.id}'); closeSidebar();">
+        <div class="sd-icon">${deviceEmoji[d.type]||'🖥️'}</div>
+        <div><div class="sd-name">${esc(d.name)}</div><div class="sd-type">${d.type}</div></div>
+      </div>`).join('');
   }
 
-  function updateDropHint() {
-    const hint = document.getElementById('drop-hint');
-    if (selectedDevice && droply.devices.has(selectedDevice)) {
-      hint.textContent = 'Sending to: ' + droply.devices.get(selectedDevice).name;
-    } else {
-      hint.textContent = 'Select a device below first';
+  function openChat(deviceId) {
+    selectedDeviceId = deviceId;
+    const conv = conversations.get(deviceId);
+    if (!conv) return;
+    const d = conv.device;
+    document.getElementById('chat-avatar').textContent = deviceEmoji[d.type]||'🖥️';
+    document.getElementById('chat-name').textContent = d.name;
+    document.getElementById('chat-sub').textContent = d.type;
+    document.getElementById('conv-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    document.getElementById('send-btn').disabled = false;
+    renderMessages(deviceId);
+    renderConvList();
+  }
+
+  function goBack() {
+    selectedDeviceId = null;
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('conv-screen').style.display = 'flex';
+    document.getElementById('send-btn').disabled = true;
+    renderConvList();
+  }
+
+  function renderMessages(deviceId) {
+    const conv = conversations.get(deviceId);
+    if (!conv) return;
+    const el = document.getElementById('chat-messages');
+    el.innerHTML = conv.messages.map(m => buildBubble(m)).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function buildBubble(m) {
+    const dir = m.direction;
+    if (m.type === 'text') {
+      return `<div class="bubble-row ${dir}">
+        <div class="bubble ${dir}">${esc(m.text)}<div class="bubble-time">${fmtTime(m.ts)}</div></div>
+      </div>`;
+    }
+    if (m.type === 'file') {
+      const dlBtn = m.url ? `<div class="file-dl" onclick="downloadFile('${m.url}','${esc(m.fileName)}')">Download</div>` : '';
+      const prog = m.progress < 100 ? `<div class="file-progress"><div class="file-progress-fill" id="prog-${m.id}" style="width:${m.progress}%"></div></div>` : '';
+      return `<div class="bubble-row ${dir}" id="bubble-${m.id}">
+        <div class="file-bubble ${dir}">
+          <div class="file-icon">${fileIcon(m.fileName)}</div>
+          <div class="file-info">
+            <div class="file-name">${esc(m.fileName)}</div>
+            <div class="file-size">${fmt(m.fileSize)}${m.progress < 100 ? ' · ' + m.progress + '%' : ''}</div>
+            ${prog}${dlBtn}
+          </div>
+        </div>
+      </div>`;
+    }
+    return '';
+  }
+
+  function addMessage(deviceId, msg) {
+    const conv = conversations.get(deviceId);
+    if (!conv) return;
+    conv.messages.push(msg);
+    if (selectedDeviceId === deviceId) {
+      const el = document.getElementById('chat-messages');
+      el.insertAdjacentHTML('beforeend', buildBubble(msg));
+      el.scrollTop = el.scrollHeight;
+    }
+    renderConvList();
+  }
+
+  function updateFileBubble(transferId, progress, url) {
+    const info = activeTransfers.get(transferId);
+    if (!info) return;
+    const prog = document.getElementById('prog-' + info.msgId);
+    if (prog) prog.style.width = progress + '%';
+    const bubble = document.getElementById('bubble-' + info.msgId);
+    if (bubble) {
+      const sizeEl = bubble.querySelector('.file-size');
+      if (sizeEl) {
+        const base = sizeEl.textContent.split(' · ')[0];
+        sizeEl.textContent = progress < 100 ? base + ' · ' + progress + '%' : base;
+      }
+    }
+    // Update message in conv
+    const conv = conversations.get(info.deviceId);
+    if (conv) {
+      const msg = conv.messages.find(m => m.id === info.msgId);
+      if (msg) {
+        msg.progress = progress;
+        if (url) { msg.url = url; msg.progress = 100; }
+      }
+    }
+    if (progress >= 100 && url) {
+      if (bubble) {
+        const fi = bubble.querySelector('.file-info');
+        if (fi && !fi.querySelector('.file-dl')) {
+          fi.insertAdjacentHTML('beforeend', `<div class="file-dl" onclick="downloadFile('${url}','${esc(info.fileName)}')">Download</div>`);
+        }
+        const p = bubble.querySelector('.file-progress');
+        if (p) p.remove();
+      }
     }
   }
 
-  function triggerSend(id) {
-    selectedDevice = id;
-    updateDropHint();
-    document.getElementById('file-input').click();
+  function downloadFile(url, name) {
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
   }
 
-  function setPin() {
-    const pin = document.getElementById('pin-input').value.trim();
-    if (pin) { droply.setPin(pin); document.getElementById('pin-input').value = ''; }
+  // Send text message
+  function sendMessage() {
+    if (!selectedDeviceId) return;
+    const el = document.getElementById('compose-text');
+    const text = el.value.trim();
+    if (!text) return;
+    el.value = '';
+    autoResize(el);
+    const msg = { id: crypto.randomUUID(), type: 'text', direction: 'out', text, ts: Date.now() };
+    addMessage(selectedDeviceId, msg);
+    // Text messages go via socket for now (simple approach)
+    droply.socket.emit('text:send', { targetId: selectedDeviceId, text, msgId: msg.id });
   }
 
-  // File input
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    document.getElementById('send-btn').disabled = !el.value.trim() && !selectedDeviceId;
+    if (selectedDeviceId) document.getElementById('send-btn').disabled = false;
+  }
+
+  // Receive text
+  droply.socket && droply.socket.on('text:receive', ({ fromId, text, msgId }) => {
+    ensureConversation(droply.devices.get(fromId) || { id: fromId, name: 'Unknown', type: 'unknown' });
+    addMessage(fromId, { id: msgId, type: 'text', direction: 'in', text, ts: Date.now() });
+  });
+
+  // We need to hook text messages after connect
+  droply.on('ready', () => {
+    droply.socket.on('text:receive', ({ fromId, text, msgId }) => {
+      const dev = droply.devices.get(fromId);
+      if (dev) ensureConversation(dev);
+      addMessage(fromId, { id: msgId||crypto.randomUUID(), type: 'text', direction: 'in', text, ts: Date.now() });
+    });
+  });
+
+  // File attach
   document.getElementById('file-input').addEventListener('change', e => {
-    if (!selectedDevice) return alert('Select a device first');
-    [...e.target.files].forEach(f => droply.sendFile(selectedDevice, f));
+    if (!selectedDeviceId) return;
+    [...e.target.files].forEach(f => sendFile(f));
     e.target.value = '';
   });
 
-  // Drag & drop
-  const dz = document.getElementById('dropzone');
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('drag-over');
-    if (!selectedDevice) return alert('Select a device first');
-    [...e.dataTransfer.files].forEach(f => droply.sendFile(selectedDevice, f));
-  });
+  async function sendFile(file) {
+    const msgId = crypto.randomUUID();
+    const msg = { id: msgId, type: 'file', direction: 'out', fileName: file.name, fileSize: file.size, progress: 0, url: null, ts: Date.now() };
+    addMessage(selectedDeviceId, msg);
+    const transferId = await droply.sendFile(selectedDeviceId, file);
+    activeTransfers.set(transferId, { msgId, deviceId: selectedDeviceId, fileName: file.name });
+  }
 
-  // Incoming
+  // Incoming file
   droply.on('transfer-incoming', ({ fromId, transferMeta }) => {
     pendingIncoming = { fromId, transferMeta };
     const dev = droply.devices.get(fromId);
-    document.getElementById('modal-info').textContent =
-      `${dev ? dev.name : 'Unknown'} wants to send you "${transferMeta.fileName}" (${fmt(transferMeta.fileSize)})`;
-    document.getElementById('modal-overlay').classList.add('show');
+    document.getElementById('incoming-info').textContent =
+      `${dev ? dev.name : 'Someone'} wants to send "${transferMeta.fileName}" (${fmt(transferMeta.fileSize)})`;
+    document.getElementById('incoming-overlay').classList.add('show');
   });
 
   function handleAccept() {
     if (!pendingIncoming) return;
-    droply.acceptTransfer(pendingIncoming.fromId, pendingIncoming.transferMeta.transferId);
-    document.getElementById('modal-overlay').classList.remove('show');
+    const { fromId, transferMeta } = pendingIncoming;
+    droply.acceptTransfer(fromId, transferMeta.transferId);
+    document.getElementById('incoming-overlay').classList.remove('show');
+    // Add incoming bubble
+    const dev = droply.devices.get(fromId);
+    if (dev) ensureConversation(dev);
+    const msgId = transferMeta.transferId;
+    addMessage(fromId, { id: msgId, type: 'file', direction: 'in', fileName: transferMeta.fileName, fileSize: transferMeta.fileSize, progress: 0, url: null, ts: Date.now() });
+    activeTransfers.set(transferMeta.transferId, { msgId, deviceId: fromId, fileName: transferMeta.fileName });
     pendingIncoming = null;
   }
 
   function handleReject() {
     if (!pendingIncoming) return;
     droply.rejectTransfer(pendingIncoming.fromId, pendingIncoming.transferMeta.transferId);
-    document.getElementById('modal-overlay').classList.remove('show');
+    document.getElementById('incoming-overlay').classList.remove('show');
     pendingIncoming = null;
   }
 
-  // Transfer events
-  droply.on('transfer-started', ({ transferId, direction }) => {
-    const t = droply.transfers.get(transferId);
-    const name = direction === 'out' ? t?.file?.name : t?.meta?.fileName;
-    const size = direction === 'out' ? t?.file?.size : t?.meta?.fileSize;
-    activeTransfers.set(transferId, { name, size, progress: 0, direction, paused: false, url: null, done: false });
-    renderActive();
-  });
-
   droply.on('transfer-progress', ({ transferId, progress }) => {
-    const t = activeTransfers.get(transferId);
-    if (t) { t.progress = progress; renderActive(); }
-  });
-
-  droply.on('transfer-paused', ({ transferId }) => {
-    const t = activeTransfers.get(transferId);
-    if (t) { t.paused = true; renderActive(); }
-  });
-
-  droply.on('transfer-resumed', ({ transferId }) => {
-    const t = activeTransfers.get(transferId);
-    if (t) { t.paused = false; renderActive(); }
+    updateFileBubble(transferId, progress, null);
   });
 
   droply.on('transfer-complete', ({ transferId, direction, url, fileName }) => {
-    const t = activeTransfers.get(transferId);
-    if (t) { t.progress = 100; t.done = true; if (url) t.url = url; renderActive(); }
-    renderHistory();
-    setTimeout(() => { activeTransfers.delete(transferId); renderActive(); }, 6000);
+    updateFileBubble(transferId, 100, url || null);
   });
 
-  function renderActive() {
-    const section = document.getElementById('active-section');
-    const el = document.getElementById('active-transfers');
-    if (!activeTransfers.size) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
-    el.innerHTML = [...activeTransfers.entries()].map(([id, t]) => `
-      <div class="transfer-item">
-        <div class="transfer-top">
-          <div style="flex:1;min-width:0">
-            <div class="transfer-name">${esc(t.name || 'File')}</div>
-            <div class="transfer-meta">${fmt(t.size || 0)} · ${t.paused ? 'Paused' : t.done ? 'Done' : (t.direction === 'out' ? 'Sending' : 'Receiving')} · ${t.progress}%</div>
-          </div>
-          <span class="transfer-dir ${t.done ? 'dir-done' : t.direction === 'in' ? 'dir-in' : 'dir-out'}">
-            ${t.done ? 'Done' : t.direction === 'in' ? '↓ In' : '↑ Out'}
-          </span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill ${t.done ? 'fill-green' : 'fill-blue'}" style="width:${t.progress}%"></div>
-        </div>
-        <div class="transfer-actions">
-          ${!t.done && t.direction === 'out' ? (
-            t.paused
-              ? `<button class="btn sm green" onclick="droply.resumeTransfer('${id}')">Resume</button>`
-              : `<button class="btn sm secondary" onclick="droply.pauseTransfer('${id}')">Pause</button>`
-          ) : ''}
-          ${t.done && t.url ? `<a href="${t.url}" download="${esc(t.name)}"><button class="btn sm">Download</button></a>` : ''}
-          ${t.done && !t.url ? '<span style="color:var(--green);font-size:13px">✓ Sent successfully</span>' : ''}
-        </div>
-      </div>
-    `).join('');
+  // Sidebar
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('show');
   }
-
-  function renderHistory() {
-    const el = document.getElementById('history-list');
-    const history = droply.getHistory();
-    if (!history.length) { el.innerHTML = '<div class="empty-state">No transfers yet</div>'; return; }
-    el.innerHTML = history.map(h => `
-      <div class="history-item">
-        <div class="history-icon ${h.direction === 'in' ? 'h-in' : 'h-out'}">${h.direction === 'in' ? '↓' : '↑'}</div>
-        <div class="history-info">
-          <div class="history-name">${esc(h.fileName)}</div>
-          <div class="history-meta">${fmt(h.fileSize)} · ${fmtTime(h.timestamp)}</div>
-        </div>
-        ${h.url ? `<a href="${h.url}" download="${esc(h.fileName)}" class="history-dl">↓</a>` : ''}
-      </div>
-    `).join('');
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
   }
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
-
-  function esc(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>
