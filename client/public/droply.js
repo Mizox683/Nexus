@@ -167,8 +167,6 @@ class Droply {
   }
 
   async _handleOffer(fromId, offer, transferMeta) {
-    this.emit('transfer-incoming', { fromId, transferMeta });
-
     this.transfers.set(transferMeta.transferId, {
       id: transferMeta.transferId, fromId, meta: transferMeta,
       chunks: new Array(transferMeta.chunkCount),
@@ -180,6 +178,10 @@ class Droply {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     this.socket.emit('signal:answer', { targetId: fromId, answer });
+
+    // Auto-accept: notify UI then immediately send accept signal
+    this.emit('transfer-incoming', { fromId, transferMeta });
+    this.socket.emit('transfer:accept', { targetId: fromId, transferId: transferMeta.transferId });
   }
 
   _setupSendChannel(channel, transferId) {
