@@ -245,17 +245,9 @@
   <div class="setup-box">
     <div class="setup-logo">Nexus</div>
     <div class="setup-tag">Local file sharing — fast &amp; private</div>
-    <label class="field-label">Your name</label>
-    <input id="device-name" placeholder="e.g. Amir's iPhone" autocomplete="off" />
-    <label class="field-label">Device type</label>
-    <select id="device-type">
-      <option value="phone">📱 Phone</option>
-      <option value="pc">💻 PC / Laptop</option>
-      <option value="tablet">📲 Tablet</option>
-      <option value="tv">📺 TV</option>
-    </select>
-    <label class="field-label">Room PIN <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-    <input id="room-pin" type="password" placeholder="Leave empty if none" />
+    <label class="field-label">Room PIN</label>
+    <input id="room-pin" type="password" placeholder="Enter room PIN" autocomplete="off" />
+    <div id="pin-error" style="color:#ef4444;font-size:13px;margin-bottom:12px;display:none">Incorrect PIN. Try again.</div>
     <button class="btn-primary" onclick="startNexus()">Join Room</button>
   </div>
 </div>
@@ -376,10 +368,48 @@
 
   loadConversations();
 
+  function detectDevice() {
+    const ua = navigator.userAgent;
+    let name, type;
+
+    if (/iPhone/.test(ua)) {
+      name = 'iPhone'; type = 'phone';
+    } else if (/iPad/.test(ua)) {
+      name = 'iPad'; type = 'tablet';
+    } else if (/Samsung|SM-/.test(ua)) {
+      name = 'Samsung'; type = 'phone';
+    } else if (/Redmi|Mi /.test(ua)) {
+      name = 'Redmi'; type = 'phone';
+    } else if (/Huawei|HW-/.test(ua)) {
+      name = 'Huawei'; type = 'phone';
+    } else if (/Android/.test(ua)) {
+      name = 'Android'; type = 'phone';
+    } else if (/CrOS/.test(ua)) {
+      name = 'Chromebook'; type = 'pc';
+    } else if (/Macintosh/.test(ua) && !/iPhone|iPad/.test(ua)) {
+      name = 'Mac'; type = 'pc';
+    } else if (/Windows/.test(ua)) {
+      name = 'Windows PC'; type = 'pc';
+    } else if (/Linux/.test(ua)) {
+      name = 'Linux PC'; type = 'pc';
+    } else if (/TV|SmartTV|WebOS|Tizen/.test(ua)) {
+      name = 'TV'; type = 'tv';
+    } else {
+      name = 'Device'; type = 'unknown';
+    }
+
+    return { name, type };
+  }
+
   async function startNexus() {
-    myName = document.getElementById('device-name').value.trim() || 'Unknown Device';
-    const type = document.getElementById('device-type').value;
-    const pin = document.getElementById('room-pin').value.trim() || null;
+    const pin = document.getElementById('room-pin').value.trim();
+    if (!pin) {
+      document.getElementById('pin-error').textContent = 'PIN is required to join.';
+      document.getElementById('pin-error').style.display = 'block';
+      return;
+    }
+    const { name, type } = detectDevice();
+    myName = name;
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('sidebar-myname').textContent = myName;
