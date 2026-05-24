@@ -1,5 +1,5 @@
 // ── Droply Core Engine ────────────────────────────────────────────
-const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+const CHUNK_SIZE = 256 * 1024; // 256KB chunks for faster transfer // 64KB chunks
 const SERVER_URL = window.location.origin;
 
 class Droply {
@@ -145,7 +145,11 @@ class Droply {
     if (this.peers.has(peerId)) return this.peers.get(peerId);
 
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+      ],
     });
 
     pc.onicecandidate = ({ candidate }) => {
