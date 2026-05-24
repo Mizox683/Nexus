@@ -11,15 +11,19 @@ const io = new Server(server, {
 });
 
 app.use(express.json());
-
 app.get('/socket.io/socket.io.js', (req, res) => {
   res.sendFile(require.resolve('socket.io/client-dist/socket.io.js'));
 });
-
 app.use(express.static(path.join(__dirname, '../client/public')));
 
-// rooms: { [roomCode]: { devices: Map<socketId, deviceInfo> , pin: string|null } }
+// ── State ─────────────────────────────────────────────────────────
 const rooms = new Map();
+// registeredDevices: { [deviceKey]: { name, type, roomCode, pin, socketId|null } }
+const registeredDevices = new Map();
+// pendingFiles: { [deviceKey]: [ {fromName, fileName, fileSize, chunks, meta} ] }
+const pendingFiles = new Map();
+
+function roomKey(code) { return code; }
 
 function getRoom(code) {
   if (!rooms.has(code)) rooms.set(code, { devices: new Map(), pin: null });
@@ -32,79 +36,97 @@ function getRoomDeviceList(code) {
   }));
 }
 
+// Device key = roomCode + deviceName (persistent identity)
+function devKey(roomCode, name) { return roomCode + ':' + name; }
+
 io.on('connection', (socket) => {
   let currentRoom = null;
+  let currentDevKey = null;
 
-  console.log(`[+] ${socket.id} connected`);
-
-  // Client sends its local network room code (derived from local IP in browser)
   socket.on('join', ({ name, type, pin, roomCode }) => {
     const code = roomCode || 'default';
     currentRoom = code;
-
     const room = getRoom(code);
 
-    // First device sets the PIN for the room; subsequent devices must match
+    // PIN check
     if (!room.pin) {
-      if (!pin) {
-        // No PIN provided and room has no PIN yet — reject
-        socket.emit('room:rejected', { reason: 'PIN required' });
-        return;
-      }
-      room.pin = pin; // First joiner sets the PIN
+      if (!pin) { socket.emit('room:rejected', { reason: 'PIN required' }); return; }
+      room.pin = pin;
     }
+    if (room.pin !== pin) { socket.emit('room:rejected', { reason: 'Wrong PIN' }); return; }
 
-    if (room.pin !== pin) {
-      socket.emit('room:rejected', { reason: 'Wrong PIN' });
-      return;
-    }
-
-    const trusted = true; // Correct PIN = trusted
-    const device = { id: socket.id, name: name || 'Unknown Device', type: type || 'unknown', trusted };
+    const trusted = true;
+    const device = { id: socket.id, name: name || 'Unknown', type: type || 'unknown', trusted };
     room.devices.set(socket.id, device);
     socket.join(code);
 
+    // Register device persistently
+    currentDevKey = devKey(code, name);
+    registeredDevices.set(currentDevKey, { name, type, roomCode: code, pin, socketId: socket.id });
+
     socket.emit('room:joined', { deviceId: socket.id, roomCode: code, trusted, devices: getRoomDeviceList(code) });
-    socket.to(code).emit('room:device-joined', { id: device.id, name: device.name, type: device.type, trusted: device.trusted });
+    socket.to(code).emit('room:device-joined', { id: socket.id, name, type, trusted });
 
-    console.log(`[room:${code}] ${device.name} joined (trusted: ${trusted})`);
+    // Deliver any queued files
+    const queue = pendingFiles.get(currentDevKey) || [];
+    if (queue.length > 0) {
+      queue.forEach(pf => {
+        socket.emit('queued:file', pf);
+      });
+      pendingFiles.delete(currentDevKey);
+    }
+
+    console.log(`[+] ${name} joined room:${code}`);
   });
 
-  socket.on('room:set-pin', ({ pin }) => {
-    if (!currentRoom) return;
-    const room = getRoom(currentRoom);
-    const device = room.devices.get(socket.id);
-    if (!device || !device.trusted) return socket.emit('error', { msg: 'Not trusted' });
-    room.pin = pin;
-    socket.emit('room:pin-set', { ok: true });
-  });
-
+  // WebRTC signaling
   socket.on('signal:offer', ({ targetId, offer, transferMeta }) => {
     io.to(targetId).emit('signal:offer', { fromId: socket.id, offer, transferMeta });
   });
-
   socket.on('signal:answer', ({ targetId, answer }) => {
     io.to(targetId).emit('signal:answer', { fromId: socket.id, answer });
   });
-
   socket.on('signal:ice', ({ targetId, candidate }) => {
     io.to(targetId).emit('signal:ice', { fromId: socket.id, candidate });
   });
-
   socket.on('transfer:accept', ({ targetId, transferId }) => {
     io.to(targetId).emit('transfer:accepted', { fromId: socket.id, transferId });
   });
-
   socket.on('transfer:reject', ({ targetId, transferId }) => {
     io.to(targetId).emit('transfer:rejected', { fromId: socket.id, transferId });
   });
+  socket.on('transfer:progress', ({ targetId, transferId, progress }) => {
+    io.to(targetId).emit('transfer:progress', { fromId: socket.id, transferId, progress });
+  });
 
+  // Queue file for offline device
+  socket.on('queue:file', ({ targetDevKey, fromName, fileName, fileSize, fileType, fileData }) => {
+    // Only queue small files (under 50MB) to avoid memory issues
+    if (fileSize > 50 * 1024 * 1024) {
+      socket.emit('queue:error', { reason: 'File too large to queue (max 50MB for offline delivery)' });
+      return;
+    }
+    if (!pendingFiles.has(targetDevKey)) pendingFiles.set(targetDevKey, []);
+    pendingFiles.get(targetDevKey).push({ fromName, fileName, fileSize, fileType, fileData, ts: Date.now() });
+    socket.emit('queue:ok', { targetDevKey });
+    console.log(`[queue] ${fromName} -> ${targetDevKey}: ${fileName}`);
+  });
+
+  // Text messages
   socket.on('text:send', ({ targetId, text, msgId }) => {
     io.to(targetId).emit('text:receive', { fromId: socket.id, text, msgId });
   });
 
-  socket.on('transfer:progress', ({ targetId, transferId, progress }) => {
-    io.to(targetId).emit('transfer:progress', { fromId: socket.id, transferId, progress });
+  // Get registered devices in room (including offline ones)
+  socket.on('room:get-registered', ({ roomCode, pin }) => {
+    const registered = [];
+    registeredDevices.forEach((dev, key) => {
+      if (dev.roomCode === roomCode && dev.pin === pin) {
+        const online = io.sockets.adapter.rooms.get(roomCode)?.has(dev.socketId);
+        registered.push({ devKey: key, name: dev.name, type: dev.type, online: !!online });
+      }
+    });
+    socket.emit('room:registered', { devices: registered });
   });
 
   socket.on('disconnect', () => {
@@ -116,11 +138,12 @@ io.on('connection', (socket) => {
       socket.to(currentRoom).emit('room:device-left', { id: socket.id });
       console.log(`[-] ${device.name} left room:${currentRoom}`);
     }
-    if (room.devices.size === 0) rooms.delete(currentRoom);
+    // Keep room alive, don't delete registered devices
+    if (room.devices.size === 0 && !registeredDevices.size) rooms.delete(currentRoom);
   });
 });
 
-app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size }));
+app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, registered: registeredDevices.size }));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Nexus server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Nexus running on port ${PORT}`));
