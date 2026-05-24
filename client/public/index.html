@@ -218,6 +218,14 @@
     .file-action-btn:hover { background: rgba(255,255,255,0.3); }
     .media-bubble.in .file-action-btn { background: var(--surface3); color: var(--text); }
     .media-bubble.in .file-action-btn:hover { background: var(--border2); }
+    .mode-btn {
+      flex: 1; padding: 11px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border2); background: var(--surface);
+      color: var(--muted2); font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
     /* scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -231,10 +239,19 @@
   <div class="setup-box">
     <div class="setup-logo">Nexus</div>
     <div class="setup-tag">Local file sharing — fast &amp; private</div>
-    <label class="field-label">Room PIN</label>
-    <input id="room-pin" type="password" placeholder="Enter room PIN" autocomplete="off" />
+
+    <div id="mode-select" style="display:flex;gap:10px;margin-bottom:24px">
+      <button class="mode-btn active" id="btn-create" onclick="setMode('create')">Create Room</button>
+      <button class="mode-btn" id="btn-join" onclick="setMode('join')">Join Room</button>
+    </div>
+
+    <div id="create-hint" style="font-size:13px;color:var(--muted2);margin-bottom:14px">Set a PIN others will use to join your room.</div>
+    <div id="join-hint" style="font-size:13px;color:var(--muted2);margin-bottom:14px;display:none">Enter the PIN of an existing room.</div>
+
+    <label class="field-label" id="pin-label">Room PIN</label>
+    <input id="room-pin" type="password" placeholder="Choose a PIN" autocomplete="off" />
     <div id="pin-error" style="color:#ef4444;font-size:13px;margin-bottom:12px;display:none">Incorrect PIN. Try again.</div>
-    <button class="btn-primary" onclick="startNexus()">Join Room</button>
+    <button class="btn-primary" id="join-btn" onclick="startNexus()">Create Room</button>
   </div>
 </div>
 
@@ -343,6 +360,18 @@
   }
 
   loadConversations();
+
+  let currentMode = 'create';
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('btn-create').classList.toggle('active', mode === 'create');
+    document.getElementById('btn-join').classList.toggle('active', mode === 'join');
+    document.getElementById('create-hint').style.display = mode === 'create' ? 'block' : 'none';
+    document.getElementById('join-hint').style.display = mode === 'join' ? 'block' : 'none';
+    document.getElementById('room-pin').placeholder = mode === 'create' ? 'Choose a PIN' : 'Enter room PIN';
+    document.getElementById('join-btn').textContent = mode === 'create' ? 'Create Room' : 'Join Room';
+    document.getElementById('pin-error').style.display = 'none';
+  }
 
   function detectDevice() {
     const ua = navigator.userAgent;
