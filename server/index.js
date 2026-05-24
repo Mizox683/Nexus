@@ -43,8 +43,23 @@ io.on('connection', (socket) => {
     currentRoom = code;
 
     const room = getRoom(code);
-    const trusted = room.pin ? room.pin === pin : true;
 
+    // First device sets the PIN for the room; subsequent devices must match
+    if (!room.pin) {
+      if (!pin) {
+        // No PIN provided and room has no PIN yet — reject
+        socket.emit('room:rejected', { reason: 'PIN required' });
+        return;
+      }
+      room.pin = pin; // First joiner sets the PIN
+    }
+
+    if (room.pin !== pin) {
+      socket.emit('room:rejected', { reason: 'Wrong PIN' });
+      return;
+    }
+
+    const trusted = true; // Correct PIN = trusted
     const device = { id: socket.id, name: name || 'Unknown Device', type: type || 'unknown', trusted };
     room.devices.set(socket.id, device);
     socket.join(code);
