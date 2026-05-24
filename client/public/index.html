@@ -96,7 +96,7 @@
     .fmeta span:last-child{opacity:.6}
 
     /* compose */
-    .compose{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));border-top:1px solid var(--b1);background:var(--bg);flex-shrink:0}
+    .compose{display:flex;align-items:flex-end;gap:8px;padding:10px 12px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));border-top:1px solid var(--b1);background:var(--bg);flex-shrink:0}
     .attach{width:38px;height:38px;border-radius:50%;border:1px solid var(--b2);background:var(--s2);color:var(--tx);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
     .input-wrap{flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:9px 14px;display:flex;align-items:center}
     .msg-input{background:none;border:none;outline:none;color:var(--tx);font-size:15px;width:100%;resize:none;font-family:inherit;line-height:1.4;max-height:100px;overflow-y:auto}
@@ -247,6 +247,9 @@ function go() {
   document.getElementById('app').style.display = 'flex';
   document.getElementById('app').style.flexDirection = 'column';
   document.getElementById('sb-me').textContent = myName;
+  // Save session for auto-login
+  try { localStorage.setItem('nx:session', JSON.stringify({pin})); } catch(e) {}
+
   droply.connect(myName, type, pin);
 
   droply.on('room-rejected', ({reason}) => {
@@ -326,21 +329,30 @@ function ensureConv(dev) {
 
 function renderList() {
   const el = document.getElementById('conv-list');
-  const devs = [...droply.devices.values()];
-  if (!devs.length) {
+  const onlineDevs = [...droply.devices.values()];
+
+  // Merge online + registered offline devices
+  const allDevs = [...onlineDevs];
+  registeredDevices.forEach(rd => {
+    if (!rd.online && !onlineDevs.find(d => d.name === rd.name)) {
+      allDevs.push({ id: rd.devKey, name: rd.name, type: rd.type, offline: true, devKey: rd.devKey });
+    }
+  });
+
+  if (!allDevs.length) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">📡</div><div>Waiting for devices…</div><div style="font-size:12px;color:var(--mu2)">Open Nexus on another device with the same PIN</div></div>';
     return;
   }
-  el.innerHTML = devs.map(d => {
+  el.innerHTML = allDevs.map(d => {
     const c = convs.get(d.id);
     const msgs = c ? c.messages : [];
     const last = msgs[msgs.length-1];
-    const lastTxt = last ? (last.type==='file' ? '📎 '+last.fileName : last.text) : 'Tap to send';
+    const lastTxt = last ? (last.type==='file' ? '📎 '+last.fileName : last.text) : d.offline ? 'Offline — files will queue' : 'Tap to send';
     const lastT = last ? fmtT(last.ts) : '';
     return `<div class="conv-item" onclick="openChat('${d.id}')">
-      <div class="conv-avatar">${EM[d.type]||'🖥️'}</div>
+      <div class="conv-avatar" style="position:relative">${EM[d.type]||'🖥️'}${d.offline ? '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;background:#555;border-radius:50%;border:2px solid var(--bg)"></span>' : '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;background:var(--gn);border-radius:50%;border:2px solid var(--bg)"></span>'}</div>
       <div class="conv-info">
-        <div class="conv-name">${esc(d.name)}</div>
+        <div class="conv-name">${esc(d.name)}${d.offline ? ' <span style="font-size:11px;color:var(--mu);font-weight:400">offline</span>' : ''}</div>
         <div class="conv-last">${esc(lastTxt)}</div>
       </div>
       ${lastT ? `<div class="conv-time">${lastT}</div>` : ''}
@@ -485,6 +497,29 @@ document.getElementById('file-input').addEventListener('change', e => {
 
 async function sendFile(file) {
   const msgId = uid();
+  // Check if device is offline
+  const dev = [...droply.devices.values()].find(d => d.id === selId);
+  if (!dev) {
+    // Offline device — queue the file on server (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File too large for offline delivery (max 50MB). Ask them to come online first.');
+      return;
+    }
+    addMsg(selId, {id:msgId, type:'file', dir:'out', fileName:file.name, fileSize:file.size, progress:100, url:null, ts:Date.now(), queued:true});
+    const reader = new FileReader();
+    reader.onload = () => {
+      droply.socket.emit('queue:file', {
+        targetDevKey: selId,
+        fromName: myName,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        fileData: reader.result
+      });
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
   addMsg(selId, {id:msgId, type:'file', dir:'out', fileName:file.name, fileSize:file.size, progress:0, url:null, ts:Date.now()});
   const tid = await droply.sendFile(selId, file);
   xfers.set(tid, {msgId, deviceId:selId, fileName:file.name});
@@ -514,10 +549,66 @@ function fmtT(ts){ return new Date(ts).toLocaleTimeString([],{hour:'2-digit',min
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function uid(){ return crypto.randomUUID(); }
 
+// ── OFFLINE DEVICES ───────────────────────────────────────────────
+let registeredDevices = []; // includes offline ones
+
+function refreshRegistered() {
+  if (!droply.socket) return;
+  const session = JSON.parse(localStorage.getItem('nx:session')||'null');
+  if (!session) return;
+  droply.socket.emit('room:get-registered', { roomCode: droply.subnet, pin: session.pin });
+}
+
+droply.on('ready', () => {
+  refreshRegistered();
+  setInterval(refreshRegistered, 10000);
+
+  droply.socket.on('room:registered', ({ devices }) => {
+    registeredDevices = devices;
+    renderList();
+  });
+
+  // Receive queued file that was sent while offline
+  droply.socket.on('queued:file', ({ fromName, fileName, fileSize, fileType, fileData, ts }) => {
+    // Find or create conv for sender
+    let devId = null;
+    droply.devices.forEach((d, id) => { if (d.name === fromName) devId = id; });
+    if (!devId) {
+      // Create a placeholder conv
+      devId = 'offline:' + fromName;
+      convs.set(devId, { device: { id: devId, name: fromName, type: 'unknown' }, messages: [] });
+    }
+    const blob = new Blob([fileData], { type: fileType });
+    const url = URL.createObjectURL(blob);
+    const msgId = uid();
+    addMsg(devId, { id: msgId, type: 'file', dir: 'in', fileName, fileSize, progress: 100, url, ts: ts || Date.now() });
+  });
+
+  droply.socket.on('queue:ok', ({ targetDevKey }) => {
+    console.log('File queued for offline device:', targetDevKey);
+  });
+
+  droply.socket.on('queue:error', ({ reason }) => {
+    alert('Could not queue file: ' + reason);
+  });
+});
+
 // Unregister any old service workers so updates show immediately
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
 }
+
+// Auto-login if session exists
+(function() {
+  try {
+    const session = JSON.parse(localStorage.getItem('nx:session') || 'null');
+    if (session && session.pin) {
+      // Auto-fill and submit
+      document.getElementById('pin').value = session.pin;
+      go();
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
