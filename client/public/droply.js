@@ -1,5 +1,7 @@
 // ── Droply Core Engine ────────────────────────────────────────────
-const CHUNK_SIZE = 256 * 1024; // 256KB chunks for faster transfer // 64KB chunks
+// iOS Safari needs smaller chunks; other browsers can handle 256KB
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const CHUNK_SIZE = isIOS ? 64 * 1024 : 256 * 1024; // 64KB chunks
 const SERVER_URL = window.location.origin;
 
 class Droply {
@@ -220,8 +222,10 @@ class Droply {
         return;
       }
 
-      if (channel.bufferedAmount > 1024 * 1024) {
-        setTimeout(sendNext, 50);
+      // iOS Safari has a much smaller buffer limit
+      const bufferLimit = isIOS ? 128 * 1024 : 1024 * 1024;
+      if (channel.bufferedAmount > bufferLimit) {
+        setTimeout(sendNext, isIOS ? 20 : 50);
         return;
       }
 
