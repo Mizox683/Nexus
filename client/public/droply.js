@@ -79,6 +79,14 @@ class Droply {
       this.emit('transfer-rejected', { fromId, transferId });
     });
 
+    this.socket.on('room:rejected', ({ reason }) => {
+      this.emit('room-rejected', { reason });
+    });
+
+    this.socket.on('text:receive', ({ fromId, text, msgId }) => {
+      this.emit('text-received', { fromId, text, msgId });
+    });
+
     this.socket.on('transfer:progress', ({ fromId, transferId, progress }) => {
       this.emit('transfer-progress-remote', { fromId, transferId, progress });
     });
