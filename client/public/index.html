@@ -1,760 +1,523 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Nexus</title>
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#0a0a0a" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --surface2: #1e1e1e;
-      --surface3: #252525;
-      --border: rgba(255,255,255,0.07);
-      --border2: rgba(255,255,255,0.13);
-      --text: #f0f0f0;
-      --muted: #666;
-      --muted2: #999;
-      --accent: #3b82f6;
-      --accent-dim: rgba(59,130,246,0.18);
-      --green: #22c55e;
-      --green-dim: rgba(34,197,94,0.15);
-      --radius: 18px;
-      --radius-sm: 10px;
-      --radius-xs: 6px;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0a;--s1:#141414;--s2:#1e1e1e;--s3:#272727;
+      --b1:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);
+      --tx:#f0f0f0;--mu:#888;--mu2:#555;
+      --ac:#3b82f6;--acd:rgba(59,130,246,.18);
+      --gn:#22c55e;--gnd:rgba(34,197,94,.15);
+      --rd:#ef4444;
+      --r:12px;--rs:8px;
     }
-    html, body { height: 100%; overflow: hidden; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom); }
+    html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
 
-    /* ── Setup ── */
-    #setup-screen {
-      height: 100vh; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; padding: 28px;
-    }
-    .setup-box { width: 100%; max-width: 380px; }
-    .setup-logo { font-size: 32px; font-weight: 700; letter-spacing: -1px; margin-bottom: 4px; }
-    .setup-tag { color: var(--muted2); font-size: 14px; margin-bottom: 36px; }
-    .field-label { font-size: 12px; color: var(--muted2); margin-bottom: 6px; display: block; }
-    input, select {
-      width: 100%; padding: 13px 16px; background: var(--surface);
-      border: 1px solid var(--border2); border-radius: var(--radius-sm);
-      color: var(--text); font-size: 15px; margin-bottom: 14px;
-      outline: none; -webkit-appearance: none; transition: border-color 0.15s;
-    }
-    input:focus, select:focus { border-color: var(--accent); }
-    select option { background: #1a1a1a; }
-    .btn-primary {
-      width: 100%; padding: 14px; background: var(--accent); color: white;
-      border: none; border-radius: var(--radius-sm); font-size: 15px;
-      font-weight: 600; cursor: pointer; transition: opacity 0.15s;
-    }
-    .btn-primary:hover { opacity: 0.88; }
+    /* ── SETUP ── */
+    #setup{height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .setup-box{width:100%;max-width:360px}
+    .logo{font-size:30px;font-weight:700;letter-spacing:-1px;margin-bottom:4px}
+    .tagline{color:var(--mu);font-size:13px;margin-bottom:32px}
+    .mode-row{display:flex;gap:8px;margin-bottom:20px}
+    .mode-btn{flex:1;padding:11px;border-radius:var(--rs);border:1px solid var(--b2);background:var(--s1);color:var(--mu);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s}
+    .mode-btn.on{background:var(--ac);border-color:var(--ac);color:#fff}
+    .hint{font-size:13px;color:var(--mu);margin-bottom:14px;line-height:1.5}
+    .lbl{font-size:12px;color:var(--mu);margin-bottom:6px;display:block}
+    input,select{width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);border-radius:var(--rs);color:var(--tx);font-size:15px;margin-bottom:12px;outline:none;-webkit-appearance:none;transition:border-color .15s}
+    input:focus,select:focus{border-color:var(--ac)}
+    .err{color:var(--rd);font-size:13px;margin-bottom:10px;display:none}
+    .primary-btn{width:100%;padding:13px;background:var(--ac);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s}
+    .primary-btn:hover{opacity:.88}
+    .primary-btn:active{opacity:.75}
 
-    /* ── App shell ── */
-    #app-screen { display: none; height: 100vh; flex-direction: row; }
+    /* ── APP SHELL ── */
+    #app{display:none;height:100vh;flex-direction:column}
 
-    /* ── Sidebar overlay (menu) ── */
-    #sidebar-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-      z-index: 40; transition: opacity 0.2s;
-    }
-    #sidebar-overlay.show { display: block; }
-    #sidebar {
-      position: fixed; top: 0; left: -280px; bottom: 0; width: 280px;
-      background: var(--surface); border-right: 1px solid var(--border2);
-      z-index: 50; transition: left 0.25s cubic-bezier(.4,0,.2,1);
-      display: flex; flex-direction: column;
-    }
-    #sidebar.open { left: 0; }
-    .sidebar-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); }
-    .sidebar-title { font-size: 18px; font-weight: 700; }
-    .sidebar-sub { font-size: 12px; color: var(--muted2); margin-top: 2px; }
-    .sidebar-section { padding: 14px 20px 8px; }
-    .sidebar-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
-    .sidebar-device {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-      border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s;
-    }
-    .sidebar-device:hover { background: var(--surface2); }
-    .sd-icon { width: 34px; height: 34px; background: var(--surface3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .sd-name { font-size: 14px; font-weight: 500; }
-    .sd-type { font-size: 12px; color: var(--muted2); }
-    .sidebar-info { padding: 14px 20px; margin-top: auto; border-top: 1px solid var(--border); }
-    .info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
-    .info-label { color: var(--muted2); }
-    .info-val { color: var(--text); font-weight: 500; }
-    .trust-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid; }
-    .trust-pill.trusted { border-color: rgba(34,197,94,0.4); color: var(--green); }
-    .trust-pill.guest { border-color: rgba(234,179,8,0.4); color: #eab308; }
+    /* ── TOPBAR ── */
+    .topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--b1);background:var(--bg);flex-shrink:0}
+    .hbg{background:none;border:none;color:var(--tx);font-size:22px;cursor:pointer;padding:2px;line-height:1}
+    .topbar-title{font-size:18px;font-weight:700;flex:1}
+    .dot{width:8px;height:8px;background:var(--gn);border-radius:50%}
 
-    /* ── Main area ── */
-    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    /* ── CONV LIST ── */
+    #conv-screen{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .conv-list{flex:1;overflow-y:auto}
+    .conv-item{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--b1);transition:background .12s}
+    .conv-item:hover{background:var(--s1)}
+    .conv-avatar{width:46px;height:46px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .conv-info{flex:1;min-width:0}
+    .conv-name{font-weight:600;font-size:15px}
+    .conv-last{font-size:13px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+    .conv-time{font-size:12px;color:var(--mu2);flex-shrink:0}
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:var(--mu);font-size:14px;text-align:center;padding:40px}
+    .empty-icon{font-size:44px}
 
-    /* ── Conversations list ── */
-    #conv-screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .topbar {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 16px; border-bottom: 1px solid var(--border);
-      background: var(--bg); flex-shrink: 0;
-    }
-    .hamburger { background: none; border: none; color: var(--text); cursor: pointer; padding: 4px; border-radius: 6px; font-size: 20px; line-height: 1; }
-    .topbar-title { font-size: 18px; font-weight: 700; flex: 1; }
-    .online-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+    /* ── CHAT ── */
+    #chat-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
+    .chat-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--b1);background:var(--bg);flex-shrink:0}
+    .back{background:none;border:none;color:var(--ac);font-size:26px;cursor:pointer;line-height:1;padding:0 4px}
+    .chat-av{width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .chat-nm{font-weight:600;font-size:16px}
+    .chat-sb{font-size:12px;color:var(--mu)}
 
-    .conv-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-    .conv-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; cursor: pointer; transition: background 0.12s;
-      border-bottom: 1px solid var(--border);
-    }
-    .conv-item:hover, .conv-item.active { background: var(--surface); }
-    .conv-avatar {
-      width: 46px; height: 46px; border-radius: 50%;
-      background: var(--surface3); display: flex; align-items: center;
-      justify-content: center; font-size: 20px; flex-shrink: 0;
-    }
-    .conv-info { flex: 1; min-width: 0; }
-    .conv-name { font-weight: 600; font-size: 15px; }
-    .conv-last { font-size: 13px; color: var(--muted2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .conv-time { font-size: 12px; color: var(--muted); flex-shrink: 0; }
-    .conv-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--muted); font-size: 14px; gap: 8px; padding: 40px; text-align: center; }
-    .conv-empty-icon { font-size: 40px; }
+    .messages{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
 
-    /* ── Chat screen ── */
-    #chat-screen { flex: 1; display: none; flex-direction: column; overflow: hidden; }
-    .chat-topbar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      background: var(--bg); flex-shrink: 0;
-    }
-    .back-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 22px; padding: 2px 6px; }
-    .chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface3); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-    .chat-device-name { font-weight: 600; font-size: 16px; }
-    .chat-device-sub { font-size: 12px; color: var(--muted2); }
+    /* bubbles */
+    .brow{display:flex}
+    .brow.out{justify-content:flex-end}
+    .brow.in{justify-content:flex-start}
+    .bubble{max-width:72%;padding:9px 13px;border-radius:18px;font-size:14px;line-height:1.45;word-break:break-word}
+    .bubble.out{background:var(--ac);color:#fff;border-bottom-right-radius:3px}
+    .bubble.in{background:var(--s2);color:var(--tx);border-bottom-left-radius:3px}
+    .btime{font-size:11px;opacity:.55;margin-top:3px}
+    .bubble.out .btime{text-align:right}
 
-    .chat-messages { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+    /* file bubble */
+    .fbubble{max-width:260px;border-radius:14px;overflow:hidden;cursor:default}
+    .fbubble.out{background:var(--ac);color:#fff;border-bottom-right-radius:3px}
+    .fbubble.in{background:var(--s2);color:var(--tx);border-bottom-left-radius:3px}
+    .fmedia{width:100%;max-height:220px;object-fit:cover;display:block}
+    video.fmedia{max-height:240px;background:#000}
+    .frow{display:flex;align-items:center;gap:10px;padding:10px 12px}
+    .ficon{font-size:28px;flex-shrink:0}
+    .finfo{min-width:0;flex:1}
+    .fname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fsize{font-size:12px;opacity:.65;margin-top:2px}
+    .fprog{height:3px;background:rgba(255,255,255,.25);border-radius:2px;margin:6px 12px 0;overflow:hidden}
+    .fprog-fill{height:100%;background:#fff;border-radius:2px;transition:width .2s}
+    .factions{display:flex;gap:6px;padding:6px 10px 10px}
+    .faction{flex:1;padding:6px;border-radius:6px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:500;cursor:pointer}
+    .fbubble.in .faction{background:var(--s3);color:var(--tx)}
+    .fmeta{display:flex;justify-content:space-between;align-items:center;padding:5px 12px 2px;font-size:12px}
+    .fmeta span:last-child{opacity:.6}
 
-    /* ── Bubbles ── */
-    .bubble-row { display: flex; }
-    .bubble-row.out { justify-content: flex-end; }
-    .bubble-row.in { justify-content: flex-start; }
-    .bubble {
-      max-width: 72%; padding: 10px 14px; border-radius: 18px;
-      font-size: 14px; line-height: 1.45; word-break: break-word;
-    }
-    .bubble.out { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
-    .bubble.in { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; }
-    .bubble-time { font-size: 11px; opacity: 0.6; margin-top: 4px; }
-    .bubble.out .bubble-time { text-align: right; }
+    /* compose */
+    .compose{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));border-top:1px solid var(--b1);background:var(--bg);flex-shrink:0}
+    .attach{width:38px;height:38px;border-radius:50%;border:1px solid var(--b2);background:var(--s2);color:var(--tx);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+    .input-wrap{flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:9px 14px;display:flex;align-items:center}
+    .msg-input{background:none;border:none;outline:none;color:var(--tx);font-size:15px;width:100%;resize:none;font-family:inherit;line-height:1.4;max-height:100px;overflow-y:auto}
+    .msg-input::placeholder{color:var(--mu2)}
+    .send{width:38px;height:38px;border-radius:50%;border:none;background:var(--ac);color:#fff;font-size:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity .15s}
+    .send:disabled{background:var(--s3);opacity:.5;cursor:default}
 
-    /* File bubble */
-    .file-bubble {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; border-radius: 14px; max-width: 280px; cursor: pointer;
-    }
-    .file-bubble.out { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
-    .file-bubble.in { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; }
-    .file-icon { font-size: 28px; flex-shrink: 0; }
-    .file-info { min-width: 0; }
-    .file-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-    .file-size { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-    .file-progress { height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; margin-top: 6px; overflow: hidden; }
-    .file-progress-fill { height: 100%; background: white; border-radius: 2px; transition: width 0.2s; }
-    .file-dl { font-size: 12px; margin-top: 4px; opacity: 0.85; text-decoration: underline; cursor: pointer; }
+    /* sidebar */
+    #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40}
+    #overlay.on{display:block}
+    #sidebar{position:fixed;top:0;left:-280px;bottom:0;width:280px;background:var(--s1);border-right:1px solid var(--b2);z-index:50;display:flex;flex-direction:column;transition:left .25s cubic-bezier(.4,0,.2,1)}
+    #sidebar.on{left:0}
+    .sb-head{padding:20px 18px 14px;border-bottom:1px solid var(--b1)}
+    .sb-title{font-size:18px;font-weight:700}
+    .sb-sub{font-size:12px;color:var(--mu);margin-top:2px}
+    .sb-sec{padding:14px 18px 6px}
+    .sb-sec-title{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mu2);font-weight:600;margin-bottom:8px}
+    .sb-dev{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;transition:background .12s}
+    .sb-dev:hover{background:var(--s2)}
+    .sb-av{width:34px;height:34px;background:var(--s2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .sb-name{font-size:14px;font-weight:500}
+    .sb-type{font-size:12px;color:var(--mu)}
+    .sb-foot{padding:14px 18px;margin-top:auto;border-top:1px solid var(--b1)}
+    .sb-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+    .sb-lbl{color:var(--mu)}
+    .trust{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid}
+    .trust.ok{border-color:rgba(34,197,94,.4);color:var(--gn)}
+    .trust.guest{border-color:rgba(234,179,8,.4);color:#eab308}
 
-    /* ── Compose bar ── */
-    .compose {
-      display: flex; align-items: flex-end; gap: 8px;
-      padding: 10px 12px; border-top: 1px solid var(--border);
-      padding-bottom: calc(10px + env(safe-area-inset-bottom));
-      background: var(--bg); flex-shrink: 0;
-    }
-    .compose-attach {
-      width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border2);
-      background: var(--surface2); color: var(--text); font-size: 20px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; transition: background 0.15s;
-    }
-    .compose-attach:hover { background: var(--surface3); }
-    .compose-input-wrap { flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 9px 14px; min-height: 38px; display: flex; align-items: center; }
-    .compose-input { background: none; border: none; outline: none; color: var(--text); font-size: 15px; width: 100%; resize: none; font-family: inherit; line-height: 1.4; max-height: 120px; overflow-y: auto; }
-    .compose-input::placeholder { color: var(--muted); }
-    .compose-send {
-      width: 38px; height: 38px; border-radius: 50%; border: none;
-      background: var(--accent); color: white; font-size: 18px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; transition: opacity 0.15s;
-    }
-    .compose-send:hover { opacity: 0.88; }
-    .compose-send:disabled { background: var(--surface3); opacity: 0.5; cursor: default; }
-
-
-
-    #file-input { display: none; }
-
-
-    /* ── Media previews ── */
-    .media-bubble {
-      max-width: 280px; border-radius: 14px; overflow: hidden;
-    }
-    .media-bubble.out { background: var(--accent); border-bottom-right-radius: 4px; }
-    .media-bubble.in { background: var(--surface2); border-bottom-left-radius: 4px; }
-    .media-preview {
-      width: 100%; max-height: 220px; object-fit: cover;
-      display: block; cursor: pointer; border-radius: 0;
-    }
-    .media-meta { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px 2px; }
-    .file-name-sm { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-    .file-size-sm { font-size: 11px; opacity: 0.7; flex-shrink: 0; }
-    .file-actions { display: flex; gap: 8px; padding: 4px 12px 10px; }
-    .file-action-btn {
-      flex: 1; padding: 6px; border-radius: 6px; border: none;
-      background: rgba(255,255,255,0.2); color: white;
-      font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s;
-    }
-    .file-action-btn:hover { background: rgba(255,255,255,0.3); }
-    .media-bubble.in .file-action-btn { background: var(--surface3); color: var(--text); }
-    .media-bubble.in .file-action-btn:hover { background: var(--border2); }
-    .mode-btn {
-      flex: 1; padding: 11px; border-radius: var(--radius-sm);
-      border: 1px solid var(--border2); background: var(--surface);
-      color: var(--muted2); font-size: 14px; font-weight: 500; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
-
-    /* scrollbar */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+    #file-input{display:none}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
   </style>
 </head>
 <body>
 
-<!-- Setup -->
-<div id="setup-screen">
+<!-- SETUP -->
+<div id="setup">
   <div class="setup-box">
-    <div class="setup-logo">Nexus</div>
-    <div class="setup-tag">Local file sharing — fast &amp; private</div>
+    <div class="logo">Nexus</div>
+    <div class="tagline">Fast local file sharing</div>
 
-    <div id="mode-select" style="display:flex;gap:10px;margin-bottom:24px">
-      <button class="mode-btn active" id="btn-create" onclick="setMode('create')">Create Room</button>
+    <div class="mode-row">
+      <button class="mode-btn on" id="btn-create" onclick="setMode('create')">Create Room</button>
       <button class="mode-btn" id="btn-join" onclick="setMode('join')">Join Room</button>
     </div>
 
-    <div id="create-hint" style="font-size:13px;color:var(--muted2);margin-bottom:14px">Set a PIN others will use to join your room.</div>
-    <div id="join-hint" style="font-size:13px;color:var(--muted2);margin-bottom:14px;display:none">Enter the PIN of an existing room.</div>
-
-    <label class="field-label" id="pin-label">Room PIN</label>
-    <input id="room-pin" type="password" placeholder="Choose a PIN" autocomplete="off" />
-    <div id="pin-error" style="color:#ef4444;font-size:13px;margin-bottom:12px;display:none">Incorrect PIN. Try again.</div>
-    <button class="btn-primary" id="join-btn" onclick="startNexus()">Create Room</button>
+    <div class="hint" id="hint">Set a PIN — share it with others so they can join.</div>
+    <span class="lbl">PIN</span>
+    <input type="password" id="pin" placeholder="Choose a PIN" autocomplete="off"/>
+    <div class="err" id="err">Incorrect PIN. Try again.</div>
+    <button class="primary-btn" id="go-btn" onclick="go()">Create Room</button>
   </div>
 </div>
 
-<!-- App -->
-<div id="app-screen">
-  <div id="main">
+<!-- APP -->
+<div id="app">
 
-    <!-- Conversations list -->
-    <div id="conv-screen">
-      <div class="topbar">
-        <button class="hamburger" onclick="openSidebar()">☰</button>
-        <span class="topbar-title">Nexus</span>
-        <span class="online-dot" id="online-dot" style="display:none"></span>
-      </div>
-      <div class="conv-list" id="conv-list">
-        <div class="conv-empty">
-          <div class="conv-empty-icon">📡</div>
-          <div>Waiting for devices on your network…</div>
-          <div style="font-size:12px;color:var(--muted)">Open Nexus on another device</div>
-        </div>
-      </div>
+  <!-- Conv list -->
+  <div id="conv-screen">
+    <div class="topbar">
+      <button class="hbg" onclick="openSB()">☰</button>
+      <span class="topbar-title">Nexus</span>
+      <span class="dot" id="dot" style="display:none"></span>
     </div>
-
-    <!-- Chat screen -->
-    <div id="chat-screen">
-      <div class="chat-topbar">
-        <button class="back-btn" onclick="goBack()">‹</button>
-        <div class="chat-avatar" id="chat-avatar">📱</div>
-        <div>
-          <div class="chat-device-name" id="chat-name">Device</div>
-          <div class="chat-device-sub" id="chat-sub">phone</div>
-        </div>
-      </div>
-      <div class="chat-messages" id="chat-messages"></div>
-      <div class="compose">
-        <button class="compose-attach" onclick="document.getElementById('file-input').click()" title="Attach file">＋</button>
-        <div class="compose-input-wrap">
-          <textarea class="compose-input" id="compose-text" placeholder="Message" rows="1"
-            oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
-        </div>
-        <button class="compose-send" id="send-btn" onclick="sendMessage()" disabled>➤</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Sidebar -->
-  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
-  <div id="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">Nexus</div>
-      <div class="sidebar-sub" id="sidebar-room">Connecting…</div>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Devices in room</div>
-      <div id="sidebar-devices"><div style="color:var(--muted);font-size:13px;padding:4px 0">No devices yet</div></div>
-    </div>
-    <div class="sidebar-info">
-      <div class="info-row">
-        <span class="info-label">Status</span>
-        <span id="sidebar-trust" class="trust-pill guest">Guest</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">My name</span>
-        <span class="info-val" id="sidebar-myname">—</span>
+    <div class="conv-list" id="conv-list">
+      <div class="empty">
+        <div class="empty-icon">📡</div>
+        <div>Waiting for devices…</div>
+        <div style="font-size:12px;color:var(--mu2)">Open Nexus on another device with the same PIN</div>
       </div>
     </div>
   </div>
 
+  <!-- Chat -->
+  <div id="chat-screen">
+    <div class="chat-bar">
+      <button class="back" onclick="goBack()">‹</button>
+      <div class="chat-av" id="chat-av">📱</div>
+      <div>
+        <div class="chat-nm" id="chat-nm">Device</div>
+        <div class="chat-sb" id="chat-sb">phone</div>
+      </div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="compose">
+      <div class="attach" onclick="document.getElementById('file-input').click()">＋</div>
+      <div class="input-wrap">
+        <textarea class="msg-input" id="txt" placeholder="Message" rows="1"
+          oninput="resize(this)" onkeydown="onkey(event)"></textarea>
+      </div>
+      <button class="send" id="send-btn" onclick="sendMsg()" disabled>➤</button>
+    </div>
+  </div>
 
-
-  <input type="file" id="file-input" multiple accept="*/*" capture="" />
 </div>
+
+<!-- Sidebar -->
+<div id="overlay" onclick="closeSB()"></div>
+<div id="sidebar">
+  <div class="sb-head">
+    <div class="sb-title">Nexus</div>
+    <div class="sb-sub" id="sb-room">—</div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-title">Devices</div>
+    <div id="sb-devs"><div style="color:var(--mu);font-size:13px">None connected</div></div>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-row"><span class="sb-lbl">Me</span><span id="sb-me">—</span></div>
+    <div class="sb-row"><span class="sb-lbl">Status</span><span class="trust ok" id="sb-trust">Trusted</span></div>
+  </div>
+</div>
+
+<input type="file" id="file-input" multiple accept="*/*"/>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/droply.js"></script>
 <script>
-  const droply = new Droply();
-  const deviceEmoji = { phone: '📱', pc: '💻', tablet: '📲', tv: '📺', unknown: '🖥️' };
+const droply = new Droply();
+const EM = {phone:'📱',pc:'💻',tablet:'📲',tv:'📺',unknown:'🖥️'};
+let mode = 'create', myName = '', selId = null;
+const convs = new Map(); // deviceId -> {device, messages:[]}
+const xfers = new Map(); // transferId -> {msgId, deviceId, fileName}
 
-  // State
-  let myName = '';
-  let selectedDeviceId = null;
-  let pendingIncoming = null;
-  // conversations: { [deviceId]: { device, messages: [] } }
-  const conversations = new Map();
-  // activeTransfers: { [transferId]: { bubbleId, direction } }
-  const activeTransfers = new Map();
+// ── SETUP ──────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-create').classList.toggle('on', m==='create');
+  document.getElementById('btn-join').classList.toggle('on', m==='join');
+  document.getElementById('hint').textContent = m==='create'
+    ? 'Set a PIN — share it with others so they can join.'
+    : 'Enter the PIN of an existing room.';
+  document.getElementById('pin').placeholder = m==='create' ? 'Choose a PIN' : 'Enter PIN';
+  document.getElementById('go-btn').textContent = m==='create' ? 'Create Room' : 'Join Room';
+  document.getElementById('err').style.display = 'none';
+}
 
-  function fmt(b) {
-    if (b < 1024) return b + ' B';
-    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
-    if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
-    return (b/1073741824).toFixed(2) + ' GB';
+function go() {
+  const pin = document.getElementById('pin').value.trim();
+  if (!pin) {
+    showErr('Enter a PIN to continue.');
+    return;
   }
-  function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  function fileIcon(name) {
-    const ext = (name||'').split('.').pop().toLowerCase();
-    if (['mp4','mov','avi','mkv','webm'].includes(ext)) return '🎬';
-    if (['jpg','jpeg','png','gif','webp','heic'].includes(ext)) return '🖼️';
-    if (['mp3','wav','aac','m4a','ogg'].includes(ext)) return '🎵';
-    if (['pdf'].includes(ext)) return '📄';
-    if (['zip','rar','7z','tar','gz'].includes(ext)) return '🗜️';
-    return '📎';
-  }
+  const {name, type} = detect();
+  myName = name;
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('app').style.flexDirection = 'column';
+  document.getElementById('sb-me').textContent = myName;
+  droply.connect(myName, type, pin);
 
-  loadConversations();
-
-  let currentMode = 'create';
-  function setMode(mode) {
-    currentMode = mode;
-    document.getElementById('btn-create').classList.toggle('active', mode === 'create');
-    document.getElementById('btn-join').classList.toggle('active', mode === 'join');
-    document.getElementById('create-hint').style.display = mode === 'create' ? 'block' : 'none';
-    document.getElementById('join-hint').style.display = mode === 'join' ? 'block' : 'none';
-    document.getElementById('room-pin').placeholder = mode === 'create' ? 'Choose a PIN' : 'Enter room PIN';
-    document.getElementById('join-btn').textContent = mode === 'create' ? 'Create Room' : 'Join Room';
-    document.getElementById('pin-error').style.display = 'none';
-  }
-
-  function detectDevice() {
-    const ua = navigator.userAgent;
-    let name, type;
-
-    if (/iPhone/.test(ua)) {
-      name = 'iPhone'; type = 'phone';
-    } else if (/iPad/.test(ua)) {
-      name = 'iPad'; type = 'tablet';
-    } else if (/Samsung|SM-/.test(ua)) {
-      name = 'Samsung'; type = 'phone';
-    } else if (/Redmi|Mi /.test(ua)) {
-      name = 'Redmi'; type = 'phone';
-    } else if (/Huawei|HW-/.test(ua)) {
-      name = 'Huawei'; type = 'phone';
-    } else if (/Android/.test(ua)) {
-      name = 'Android'; type = 'phone';
-    } else if (/CrOS/.test(ua)) {
-      name = 'Chromebook'; type = 'pc';
-    } else if (/Macintosh/.test(ua) && !/iPhone|iPad/.test(ua)) {
-      name = 'Mac'; type = 'pc';
-    } else if (/Windows/.test(ua)) {
-      name = 'Windows PC'; type = 'pc';
-    } else if (/Linux/.test(ua)) {
-      name = 'Linux PC'; type = 'pc';
-    } else if (/TV|SmartTV|WebOS|Tizen/.test(ua)) {
-      name = 'TV'; type = 'tv';
-    } else {
-      name = 'Device'; type = 'unknown';
-    }
-
-    return { name, type };
-  }
-
-  async function startNexus() {
-    const pin = document.getElementById('room-pin').value.trim();
-    if (!pin) {
-      document.getElementById('pin-error').textContent = 'PIN is required to join.';
-      document.getElementById('pin-error').style.display = 'block';
-      return;
-    }
-    const { name, type } = detectDevice();
-    myName = name;
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'flex';
-    document.getElementById('sidebar-myname').textContent = myName;
-    await droply.connect(myName, type, pin);
-
-    droply.on('room-rejected', ({ reason }) => {
-      document.getElementById('app-screen').style.display = 'none';
-      document.getElementById('setup-screen').style.display = 'flex';
-      document.getElementById('pin-error').textContent = reason === 'Wrong PIN' ? 'Incorrect PIN. Try again.' : 'PIN required to join.';
-      document.getElementById('pin-error').style.display = 'block';
-      document.getElementById('room-pin').value = '';
-    });
-
-    droply.on('text-received', ({ fromId, text, msgId }) => {
-      const dev = droply.devices.get(fromId);
-      if (dev) ensureConversation(dev);
-      addMessage(fromId, { id: msgId || crypto.randomUUID(), type: 'text', direction: 'in', text, ts: Date.now() });
-    });
-  }
-
-  droply.on('ready', ({ subnet, trusted, devices }) => {
-    document.getElementById('online-dot').style.display = 'inline-block';
-    document.getElementById('sidebar-room').textContent = 'Room: ' + subnet;
-    const tp = document.getElementById('sidebar-trust');
-    tp.textContent = trusted ? 'Trusted' : 'Guest';
-    tp.className = 'trust-pill ' + (trusted ? 'trusted' : 'guest');
-    devices.forEach(ensureConversation);
-    renderConvList();
-    renderSidebarDevices();
+  droply.on('room-rejected', ({reason}) => {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('setup').style.display = 'flex';
+    showErr(reason === 'Wrong PIN' ? 'Incorrect PIN. Try again.' : 'PIN required.');
+    document.getElementById('pin').value = '';
   });
 
-  droply.on('device-joined', (device) => {
-    ensureConversation(device);
-    renderConvList();
-    renderSidebarDevices();
+  droply.on('text-received', ({fromId, text, msgId}) => {
+    const dev = droply.devices.get(fromId);
+    if (dev) ensureConv(dev);
+    addMsg(fromId, {id: msgId||uid(), type:'text', dir:'in', text, ts: Date.now()});
   });
+}
 
-  droply.on('device-left', ({ id }) => {
-    renderConvList();
-    renderSidebarDevices();
-  });
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
 
-  function ensureConversation(device) {
-    if (!conversations.has(device.id)) {
-      conversations.set(device.id, { device, messages: [] });
-    }
+function detect() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return {name:'iPhone', type:'phone'};
+  if (/iPad/.test(ua)) return {name:'iPad', type:'tablet'};
+  if (/Samsung|SM-/.test(ua)) return {name:'Samsung', type:'phone'};
+  if (/Redmi|Mi /.test(ua)) return {name:'Redmi', type:'phone'};
+  if (/Huawei/.test(ua)) return {name:'Huawei', type:'phone'};
+  if (/Android/.test(ua)) return {name:'Android', type:'phone'};
+  if (/Macintosh/.test(ua)) return {name:'Mac', type:'pc'};
+  if (/Windows/.test(ua)) return {name:'Windows PC', type:'pc'};
+  if (/Linux/.test(ua)) return {name:'Linux PC', type:'pc'};
+  if (/TV|WebOS|Tizen/.test(ua)) return {name:'TV', type:'tv'};
+  return {name:'Device', type:'unknown'};
+}
+
+// ── DROPLY EVENTS ──────────────────────────────────────────────────
+droply.on('ready', ({subnet, trusted, devices}) => {
+  document.getElementById('dot').style.display = 'inline-block';
+  document.getElementById('sb-room').textContent = 'Room: ' + subnet;
+  const t = document.getElementById('sb-trust');
+  t.textContent = trusted ? 'Trusted' : 'Guest';
+  t.className = 'trust ' + (trusted ? 'ok' : 'guest');
+  devices.forEach(ensureConv);
+  renderList(); renderSB();
+});
+
+droply.on('device-joined', d => { ensureConv(d); renderList(); renderSB(); });
+droply.on('device-left', ({id}) => {
+  if (selId === id) goBack();
+  renderList(); renderSB();
+});
+
+droply.on('transfer-incoming', ({fromId, transferMeta}) => {
+  const dev = droply.devices.get(fromId);
+  if (dev) ensureConv(dev);
+  const msgId = uid();
+  addMsg(fromId, {id:msgId, type:'file', dir:'in',
+    fileName:transferMeta.fileName, fileSize:transferMeta.fileSize,
+    progress:0, url:null, ts:Date.now()});
+  xfers.set(transferMeta.transferId, {msgId, deviceId:fromId, fileName:transferMeta.fileName});
+});
+
+droply.on('transfer-progress', ({transferId, progress}) => updateBubble(transferId, progress, null));
+droply.on('transfer-complete', ({transferId, url}) => updateBubble(transferId, 100, url||null));
+
+// ── CONVERSATIONS ──────────────────────────────────────────────────
+function ensureConv(dev) {
+  if (!convs.has(dev.id)) {
+    const saved = loadConvMsgs(dev.id);
+    convs.set(dev.id, {device:dev, messages:saved});
+  } else {
+    convs.get(dev.id).device = dev; // update device info
   }
+}
 
-  function renderConvList() {
-    const el = document.getElementById('conv-list');
-    const devs = [...droply.devices.values()];
-    if (!devs.length) {
-      el.innerHTML = `<div class="conv-empty"><div class="conv-empty-icon">📡</div><div>Waiting for devices on your network…</div><div style="font-size:12px;color:var(--muted)">Open Nexus on another device</div></div>`;
-      return;
-    }
-    el.innerHTML = devs.map(d => {
-      const conv = conversations.get(d.id);
-      const msgs = conv ? conv.messages : [];
-      const last = msgs.length ? msgs[msgs.length-1] : null;
-      const lastText = last ? (last.type === 'file' ? '📎 ' + last.fileName : last.text) : 'Tap to send files or messages';
-      const lastTime = last ? fmtTime(last.ts) : '';
-      return `<div class="conv-item ${selectedDeviceId === d.id ? 'active' : ''}" onclick="openChat('${d.id}')">
-        <div class="conv-avatar">${deviceEmoji[d.type]||'🖥️'}</div>
-        <div class="conv-info">
-          <div class="conv-name">${esc(d.name)}</div>
-          <div class="conv-last">${esc(lastText)}</div>
-        </div>
-        ${lastTime ? `<div class="conv-time">${lastTime}</div>` : ''}
-      </div>`;
-    }).join('');
+function renderList() {
+  const el = document.getElementById('conv-list');
+  const devs = [...droply.devices.values()];
+  if (!devs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📡</div><div>Waiting for devices…</div><div style="font-size:12px;color:var(--mu2)">Open Nexus on another device with the same PIN</div></div>';
+    return;
   }
+  el.innerHTML = devs.map(d => {
+    const c = convs.get(d.id);
+    const msgs = c ? c.messages : [];
+    const last = msgs[msgs.length-1];
+    const lastTxt = last ? (last.type==='file' ? '📎 '+last.fileName : last.text) : 'Tap to send';
+    const lastT = last ? fmtT(last.ts) : '';
+    return `<div class="conv-item" onclick="openChat('${d.id}')">
+      <div class="conv-avatar">${EM[d.type]||'🖥️'}</div>
+      <div class="conv-info">
+        <div class="conv-name">${esc(d.name)}</div>
+        <div class="conv-last">${esc(lastTxt)}</div>
+      </div>
+      ${lastT ? `<div class="conv-time">${lastT}</div>` : ''}
+    </div>`;
+  }).join('');
+}
 
-  function renderSidebarDevices() {
-    const el = document.getElementById('sidebar-devices');
-    const devs = [...droply.devices.values()];
-    if (!devs.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">No devices yet</div>'; return; }
-    el.innerHTML = devs.map(d => `
-      <div class="sidebar-device" onclick="openChat('${d.id}'); closeSidebar();">
-        <div class="sd-icon">${deviceEmoji[d.type]||'🖥️'}</div>
-        <div><div class="sd-name">${esc(d.name)}</div><div class="sd-type">${d.type}</div></div>
-      </div>`).join('');
-  }
+function renderSB() {
+  const el = document.getElementById('sb-devs');
+  const devs = [...droply.devices.values()];
+  if (!devs.length) { el.innerHTML = '<div style="color:var(--mu);font-size:13px">None connected</div>'; return; }
+  el.innerHTML = devs.map(d => `
+    <div class="sb-dev" onclick="openChat('${d.id}');closeSB()">
+      <div class="sb-av">${EM[d.type]||'🖥️'}</div>
+      <div><div class="sb-name">${esc(d.name)}</div><div class="sb-type">${d.type}</div></div>
+    </div>`).join('');
+}
 
-  function openChat(deviceId) {
-    selectedDeviceId = deviceId;
-    const conv = conversations.get(deviceId);
-    if (!conv) return;
-    const d = conv.device;
-    document.getElementById('chat-avatar').textContent = deviceEmoji[d.type]||'🖥️';
-    document.getElementById('chat-name').textContent = d.name;
-    document.getElementById('chat-sub').textContent = d.type;
-    document.getElementById('conv-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display = 'flex';
-    document.getElementById('send-btn').disabled = false;
-    renderMessages(deviceId);
-    renderConvList();
-  }
+function openChat(id) {
+  selId = id;
+  const c = convs.get(id);
+  if (!c) return;
+  const d = c.device;
+  document.getElementById('chat-av').textContent = EM[d.type]||'🖥️';
+  document.getElementById('chat-nm').textContent = d.name;
+  document.getElementById('chat-sb').textContent = d.type;
+  document.getElementById('conv-screen').style.display = 'none';
+  document.getElementById('chat-screen').style.display = 'flex';
+  document.getElementById('send-btn').disabled = false;
+  renderMsgs(id);
+}
 
-  function goBack() {
-    selectedDeviceId = null;
-    document.getElementById('chat-screen').style.display = 'none';
-    document.getElementById('conv-screen').style.display = 'flex';
-    document.getElementById('send-btn').disabled = true;
-    renderConvList();
-  }
+function goBack() {
+  selId = null;
+  document.getElementById('chat-screen').style.display = 'none';
+  document.getElementById('conv-screen').style.display = 'flex';
+  document.getElementById('send-btn').disabled = true;
+  renderList();
+}
 
-  function renderMessages(deviceId) {
-    const conv = conversations.get(deviceId);
-    if (!conv) return;
-    const el = document.getElementById('chat-messages');
-    el.innerHTML = conv.messages.map(m => buildBubble(m)).join('');
+function renderMsgs(id) {
+  const c = convs.get(id);
+  if (!c) return;
+  const el = document.getElementById('messages');
+  el.innerHTML = c.messages.map(buildBubble).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function addMsg(devId, msg) {
+  const c = convs.get(devId);
+  if (!c) return;
+  c.messages.push(msg);
+  saveConvMsgs(devId, c.messages);
+  if (selId === devId) {
+    const el = document.getElementById('messages');
+    el.insertAdjacentHTML('beforeend', buildBubble(msg));
     el.scrollTop = el.scrollHeight;
   }
+  renderList();
+}
 
-  function isImage(name) { return /\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i.test(name||''); }
-  function isVideo(name) { return /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(name||''); }
+// ── BUBBLES ────────────────────────────────────────────────────────
+function isImg(n){return /\.(jpg|jpeg|png|gif|webp|heic|bmp)$/i.test(n||'')}
+function isVid(n){return /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(n||'')}
+function fIcon(n){
+  if(isImg(n)) return '🖼️';
+  if(isVid(n)) return '🎬';
+  if(/\.(mp3|wav|aac|m4a)$/i.test(n||'')) return '🎵';
+  if(/\.pdf$/i.test(n||'')) return '📄';
+  if(/\.(zip|rar|7z)$/i.test(n||'')) return '🗜️';
+  return '📎';
+}
 
-  function buildBubble(m) {
-    const dir = m.direction;
-    if (m.type === 'text') {
-      return '<div class="bubble-row ' + dir + '"><div class="bubble ' + dir + '">' + esc(m.text) + '<div class="bubble-time">' + fmtTime(m.ts) + '</div></div></div>';
+function buildBubble(m) {
+  const d = m.dir||m.direction||'out';
+  if (m.type === 'text') {
+    return `<div class="brow ${d}"><div class="bubble ${d}">${esc(m.text)}<div class="btime">${fmtT(m.ts)}</div></div></div>`;
+  }
+  if (m.type === 'file') {
+    const done = (m.progress >= 100) || !!m.url;
+    const u = m.url || '';
+    const n = esc(m.fileName || 'file');
+    const prog = !done ? `<div class="fprog"><div class="fprog-fill" id="fp-${m.id}" style="width:${m.progress||0}%"></div></div>` : '';
+    const acts = done && u ? `<div class="factions"><button class="faction" onclick="doOpen('${u}')">Open</button><button class="faction" onclick="doDl('${u}','${n}')">Download</button></div>` : '';
+
+    if (done && u && isImg(m.fileName)) {
+      return `<div class="brow ${d}" id="b-${m.id}"><div class="fbubble ${d}"><img src="${u}" class="fmedia" onclick="doOpen('${u}')"/><div class="fmeta"><span>${n}</span><span>${fmt(m.fileSize)}</span></div>${acts}<div style="padding:0 12px 6px;font-size:11px;opacity:.5">${fmtT(m.ts)}</div></div></div>`;
     }
-    if (m.type === 'file') {
-      const done = m.progress >= 100 || !!m.url;
-      const safeUrl = m.url || '';
-      const safeName = esc(m.fileName || 'file');
-      const prog = !done ? '<div class="file-progress"><div class="file-progress-fill" id="prog-' + m.id + '" style="width:' + (m.progress||0) + '%"></div></div>' : '';
-      const actions = done && safeUrl ? '<div class="file-actions"><button class="file-action-btn" onclick="openFile(this)">Open</button><button class="file-action-btn" onclick="dlFile(this)">Download</button></div>' : '';
-
-      if (done && safeUrl && isImage(m.fileName)) {
-        return '<div class="bubble-row ' + dir + '" id="bubble-' + m.id + '" data-url="' + safeUrl + '" data-name="' + safeName + '">' +
-          '<div class="media-bubble ' + dir + '">' +
-          '<img src="' + safeUrl + '" class="media-preview" onclick="openFile(this.closest('[data-url]')" />' +
-          '<div class="media-meta"><span class="file-name-sm">' + safeName + '</span><span class="file-size-sm">' + fmt(m.fileSize) + '</span></div>' +
-          actions + '<div class="bubble-time">' + fmtTime(m.ts) + '</div></div></div>';
-      }
-
-      if (done && safeUrl && isVideo(m.fileName)) {
-        return '<div class="bubble-row ' + dir + '" id="bubble-' + m.id + '" data-url="' + safeUrl + '" data-name="' + safeName + '">' +
-          '<div class="media-bubble ' + dir + '">' +
-          '<video src="' + safeUrl + '" class="media-preview" controls playsinline preload="metadata"></video>' +
-          '<div class="media-meta"><span class="file-name-sm">' + safeName + '</span><span class="file-size-sm">' + fmt(m.fileSize) + '</span></div>' +
-          actions + '<div class="bubble-time">' + fmtTime(m.ts) + '</div></div></div>';
-      }
-
-      return '<div class="bubble-row ' + dir + '" id="bubble-' + m.id + '" data-url="' + safeUrl + '" data-name="' + safeName + '">' +
-        '<div class="file-bubble ' + dir + '">' +
-        '<div class="file-icon">' + fileIcon(m.fileName) + '</div>' +
-        '<div class="file-info">' +
-        '<div class="file-name">' + safeName + '</div>' +
-        '<div class="file-size">' + fmt(m.fileSize) + (!done ? ' · ' + (m.progress||0) + '%' : '') + '</div>' +
-        prog + actions + '</div></div></div>';
+    if (done && u && isVid(m.fileName)) {
+      return `<div class="brow ${d}" id="b-${m.id}"><div class="fbubble ${d}"><video src="${u}" class="fmedia" controls playsinline preload="metadata"></video><div class="fmeta"><span>${n}</span><span>${fmt(m.fileSize)}</span></div>${acts}<div style="padding:0 12px 6px;font-size:11px;opacity:.5">${fmtT(m.ts)}</div></div></div>`;
     }
-    return '';
+    return `<div class="brow ${d}" id="b-${m.id}"><div class="fbubble ${d}"><div class="frow"><div class="ficon">${fIcon(m.fileName)}</div><div class="finfo"><div class="fname">${n}</div><div class="fsize">${fmt(m.fileSize)}${!done?' · '+(m.progress||0)+'%':''}</div></div></div>${prog}${acts}<div style="padding:0 12px 6px;font-size:11px;opacity:.5">${fmtT(m.ts)}</div></div></div>`;
   }
+  return '';
+}
 
-  function openFile(el) {
-    const row = el.closest ? el.closest('[data-url]') : el;
-    if (row && row.dataset.url) window.open(row.dataset.url, '_blank');
-  }
-  function dlFile(el) {
-    const row = el.closest('[data-url]');
-    if (row && row.dataset.url) downloadFile(row.dataset.url, row.dataset.name || 'file');
-  }
-
-  function saveConversations() {
-    const data = {};
-    conversations.forEach((conv, id) => {
-      // Only save metadata, not blob URLs (they don't persist)
-      data[id] = {
-        device: conv.device,
-        messages: conv.messages.map(m => ({...m, url: m.url && m.url.startsWith('blob:') ? null : m.url}))
-      };
-    });
-    try { localStorage.setItem('nexus:conversations', JSON.stringify(data)); } catch(e) {}
-  }
-
-  function loadConversations() {
-    try {
-      const data = JSON.parse(localStorage.getItem('nexus:conversations') || '{}');
-      Object.entries(data).forEach(([id, conv]) => {
-        conversations.set(id, conv);
-      });
-    } catch(e) {}
-  }
-
-  function addMessage(deviceId, msg) {
-    const conv = conversations.get(deviceId);
-    if (!conv) return;
-    conv.messages.push(msg);
-    if (selectedDeviceId === deviceId) {
-      const el = document.getElementById('chat-messages');
-      el.insertAdjacentHTML('beforeend', buildBubble(msg));
-      el.scrollTop = el.scrollHeight;
-    }
-    saveConversations();
-    renderConvList();
-  }
-
-  function updateFileBubble(transferId, progress, url) {
-    const info = activeTransfers.get(transferId);
-    if (!info) return;
-    const prog = document.getElementById('prog-' + info.msgId);
-    if (prog) prog.style.width = progress + '%';
-    const bubble = document.getElementById('bubble-' + info.msgId);
-    if (bubble) {
-      const sizeEl = bubble.querySelector('.file-size');
-      if (sizeEl) {
-        const base = sizeEl.textContent.split(' · ')[0];
-        sizeEl.textContent = progress < 100 ? base + ' · ' + progress + '%' : base;
-      }
-    }
-    // Update message in conv
-    const conv = conversations.get(info.deviceId);
-    if (conv) {
-      const msg = conv.messages.find(m => m.id === info.msgId);
-      if (msg) {
-        msg.progress = progress;
-        if (url) { msg.url = url; msg.progress = 100; }
-      }
-    }
-    if (progress >= 100 && url) {
-      if (bubble) {
-        const fi = bubble.querySelector('.file-info');
-        if (fi && !fi.querySelector('.file-dl')) {
-          fi.insertAdjacentHTML('beforeend', `<div class="file-dl" onclick="downloadFile('${url}','${esc(info.fileName)}')">Download</div>`);
-        }
-        const p = bubble.querySelector('.file-progress');
-        if (p) p.remove();
+function updateBubble(transferId, progress, url) {
+  const x = xfers.get(transferId);
+  if (!x) return;
+  const c = convs.get(x.deviceId);
+  if (c) {
+    const msg = c.messages.find(m => m.id === x.msgId);
+    if (msg) {
+      msg.progress = progress;
+      if (url) msg.url = url;
+      if (progress >= 100 || url) {
+        // Re-render the bubble
+        const el = document.getElementById('b-' + x.msgId);
+        if (el) el.outerHTML = buildBubble(msg);
+        saveConvMsgs(x.deviceId, c.messages);
+      } else {
+        const fp = document.getElementById('fp-' + x.msgId);
+        if (fp) fp.style.width = progress + '%';
+        const sz = el2('b-' + x.msgId);
+        if (sz) { const fs = sz.querySelector('.fsize'); if(fs) fs.textContent = fmt(msg.fileSize) + ' · ' + progress + '%'; }
       }
     }
   }
+}
 
-  function downloadFile(url, name) {
-    const a = document.createElement('a');
-    a.href = url; a.download = name; a.click();
-  }
+function el2(id){ return document.getElementById(id); }
+function doOpen(u){ window.open(u,'_blank'); }
+function doDl(u,n){ const a=document.createElement('a'); a.href=u; a.download=n; a.click(); }
 
-  // Send text message
-  function sendMessage() {
-    if (!selectedDeviceId) return;
-    const el = document.getElementById('compose-text');
-    const text = el.value.trim();
-    if (!text) return;
-    el.value = '';
-    autoResize(el);
-    const msg = { id: crypto.randomUUID(), type: 'text', direction: 'out', text, ts: Date.now() };
-    addMessage(selectedDeviceId, msg);
-    // Text messages go via socket for now (simple approach)
-    droply.socket.emit('text:send', { targetId: selectedDeviceId, text, msgId: msg.id });
-  }
+// ── SEND ───────────────────────────────────────────────────────────
+function sendMsg() {
+  if (!selId) return;
+  const el = document.getElementById('txt');
+  const text = el.value.trim();
+  if (!text) return;
+  el.value = ''; resize(el);
+  const msg = {id:uid(), type:'text', dir:'out', text, ts:Date.now()};
+  addMsg(selId, msg);
+  droply.socket.emit('text:send', {targetId:selId, text, msgId:msg.id});
+}
 
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  }
+document.getElementById('file-input').addEventListener('change', e => {
+  if (!selId) return;
+  [...e.target.files].forEach(f => sendFile(f));
+  e.target.value = '';
+});
 
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-    document.getElementById('send-btn').disabled = !el.value.trim() && !selectedDeviceId;
-    if (selectedDeviceId) document.getElementById('send-btn').disabled = false;
-  }
+async function sendFile(file) {
+  const msgId = uid();
+  addMsg(selId, {id:msgId, type:'file', dir:'out', fileName:file.name, fileSize:file.size, progress:0, url:null, ts:Date.now()});
+  const tid = await droply.sendFile(selId, file);
+  xfers.set(tid, {msgId, deviceId:selId, fileName:file.name});
+}
 
+function onkey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+function resize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
 
+// ── SIDEBAR ────────────────────────────────────────────────────────
+function openSB(){ document.getElementById('sidebar').classList.add('on'); document.getElementById('overlay').classList.add('on'); }
+function closeSB(){ document.getElementById('sidebar').classList.remove('on'); document.getElementById('overlay').classList.remove('on'); }
 
-  // File attach
-  document.getElementById('file-input').addEventListener('change', e => {
-    if (!selectedDeviceId) return;
-    [...e.target.files].forEach(f => sendFile(f));
-    e.target.value = '';
-  });
+// ── PERSISTENCE ────────────────────────────────────────────────────
+function saveConvMsgs(id, msgs) {
+  try {
+    const safe = msgs.map(m => ({...m, url: m.url&&m.url.startsWith('blob:') ? null : m.url}));
+    localStorage.setItem('nx:conv:'+id, JSON.stringify(safe));
+  } catch(e){}
+}
+function loadConvMsgs(id) {
+  try { return JSON.parse(localStorage.getItem('nx:conv:'+id)||'[]'); } catch(e){ return []; }
+}
 
-  async function sendFile(file) {
-    const msgId = crypto.randomUUID();
-    const msg = { id: msgId, type: 'file', direction: 'out', fileName: file.name, fileSize: file.size, progress: 0, url: null, ts: Date.now() };
-    addMessage(selectedDeviceId, msg);
-    const transferId = await droply.sendFile(selectedDeviceId, file);
-    activeTransfers.set(transferId, { msgId, deviceId: selectedDeviceId, fileName: file.name });
-  }
+// ── UTILS ──────────────────────────────────────────────────────────
+function fmt(b){ if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; if(b<1073741824)return(b/1048576).toFixed(1)+' MB'; return(b/1073741824).toFixed(2)+' GB'; }
+function fmtT(ts){ return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function uid(){ return crypto.randomUUID(); }
 
-  // Incoming file
-  droply.on('transfer-incoming', ({ fromId, transferMeta }) => {
-    pendingIncoming = { fromId, transferMeta };
-    const dev = droply.devices.get(fromId);
-    document.getElementById('incoming-info').textContent =
-      `${dev ? dev.name : 'Someone'} wants to send "${transferMeta.fileName}" (${fmt(transferMeta.fileSize)})`;
-    document.getElementById('incoming-overlay').classList.add('show');
-  });
-
-  function handleAccept() {
-    if (!pendingIncoming) return;
-    const { fromId, transferMeta } = pendingIncoming;
-    droply.acceptTransfer(fromId, transferMeta.transferId);
-    document.getElementById('incoming-overlay').classList.remove('show');
-    const dev = droply.devices.get(fromId);
-    if (dev) ensureConversation(dev);
-    const msgId = crypto.randomUUID();
-    addMessage(fromId, {
-      id: msgId,
-      type: 'file',
-      direction: 'in',
-      fileName: transferMeta.fileName,
-      fileSize: transferMeta.fileSize,
-      progress: 0,
-      url: null,
-      ts: Date.now()
-    });
-    activeTransfers.set(transferMeta.transferId, { msgId, deviceId: fromId, fileName: transferMeta.fileName });
-    pendingIncoming = null;
-  }
-
-  function handleReject() {
-    if (!pendingIncoming) return;
-    droply.rejectTransfer(pendingIncoming.fromId, pendingIncoming.transferMeta.transferId);
-    document.getElementById('incoming-overlay').classList.remove('show');
-    pendingIncoming = null;
-  }
-
-  droply.on('transfer-progress', ({ transferId, progress }) => {
-    updateFileBubble(transferId, progress, null);
-  });
-
-  droply.on('transfer-complete', ({ transferId, direction, url, fileName }) => {
-    updateFileBubble(transferId, 100, url || null);
-  });
-
-  // Sidebar
-  function openSidebar() {
-    document.getElementById('sidebar').classList.add('open');
-    document.getElementById('sidebar-overlay').classList.add('show');
-  }
-  function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebar-overlay').classList.remove('show');
-  }
-
-  // SW disabled during development
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-  }
+// Unregister any old service workers so updates show immediately
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
+}
 </script>
 </body>
 </html>
