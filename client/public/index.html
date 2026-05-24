@@ -96,7 +96,7 @@
     .fmeta span:last-child{opacity:.6}
 
     /* compose */
-    .compose{display:flex;align-items:flex-end;gap:8px;padding:10px 12px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));border-top:1px solid var(--b1);background:var(--bg);flex-shrink:0}
+    .compose{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--b1);background:var(--bg);flex-shrink:0}
     .attach{width:38px;height:38px;border-radius:50%;border:1px solid var(--b2);background:var(--s2);color:var(--tx);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
     .input-wrap{flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:9px 14px;display:flex;align-items:center}
     .msg-input{background:none;border:none;outline:none;color:var(--tx);font-size:15px;width:100%;resize:none;font-family:inherit;line-height:1.4;max-height:100px;overflow-y:auto}
@@ -373,11 +373,17 @@ function renderSB() {
 
 function openChat(id) {
   selId = id;
+  // Ensure conv exists even for offline devices
+  if (!convs.has(id)) {
+    const rd = registeredDevices.find(r => r.devKey === id);
+    if (rd) convs.set(id, { device: { id, name: rd.name, type: rd.type, offline: true, devKey: id }, messages: loadConvMsgs(id) });
+    else return;
+  }
   const c = convs.get(id);
-  if (!c) return;
   const d = c.device;
+  const offline = d.offline || !droply.devices.has(id);
   document.getElementById('chat-av').textContent = EM[d.type]||'🖥️';
-  document.getElementById('chat-nm').textContent = d.name;
+  document.getElementById('chat-nm').textContent = d.name + (offline ? ' (offline)' : '');
   document.getElementById('chat-sb').textContent = d.type;
   document.getElementById('conv-screen').style.display = 'none';
   document.getElementById('chat-screen').style.display = 'flex';
@@ -432,11 +438,11 @@ function buildBubble(m) {
     return `<div class="brow ${d}"><div class="bubble ${d}">${esc(m.text)}<div class="btime">${fmtT(m.ts)}</div></div></div>`;
   }
   if (m.type === 'file') {
-    const done = (m.progress >= 100) || !!m.url;
+    const done = (m.progress >= 100) || !!m.url || !!m.queued;
     const u = m.url || '';
     const n = esc(m.fileName || 'file');
     const prog = !done ? `<div class="fprog"><div class="fprog-fill" id="fp-${m.id}" style="width:${m.progress||0}%"></div></div>` : '';
-    const acts = done && u ? `<div class="factions"><button class="faction" onclick="doOpen('${u}')">Open</button><button class="faction" onclick="doDl('${u}','${n}')">Download</button></div>` : '';
+    const acts = done && u ? `<div class="factions"><button class="faction" onclick="doOpen('${u}')">Open</button><button class="faction" onclick="doDl('${u}','${n}')">Download</button></div>` : (m.queued && !u ? '<div style="padding:4px 12px 8px;font-size:12px;opacity:.6">⏳ Queued — delivers when they reconnect</div>' : '');
 
     if (done && u && isImg(m.fileName)) {
       return `<div class="brow ${d}" id="b-${m.id}"><div class="fbubble ${d}"><img src="${u}" class="fmedia" onclick="doOpen('${u}')"/><div class="fmeta"><span>${n}</span><span>${fmt(m.fileSize)}</span></div>${acts}<div style="padding:0 12px 6px;font-size:11px;opacity:.5">${fmtT(m.ts)}</div></div></div>`;
