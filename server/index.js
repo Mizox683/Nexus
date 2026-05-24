@@ -84,6 +84,10 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('transfer:rejected', { fromId: socket.id, transferId });
   });
 
+  socket.on('text:send', ({ targetId, text, msgId }) => {
+    io.to(targetId).emit('text:receive', { fromId: socket.id, text, msgId });
+  });
+
   socket.on('transfer:progress', ({ targetId, transferId, progress }) => {
     io.to(targetId).emit('transfer:progress', { fromId: socket.id, transferId, progress });
   });
