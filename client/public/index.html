@@ -584,108 +584,59 @@ function renderRemote() {
     el.innerHTML = '<div class="empty"><div class="empty-icon">🖥️</div><div>No PCs available</div><div style="font-size:12px;color:var(--mu2)">Install Nexus Agent on your PC</div></div>';
     return;
   }
-  el.innerHTML = pcs.map(pc => `
+  // Also show offline PCs from registered devices
+  const offlinePCs = registeredDevices.filter(r => !r.online && r.type === 'pc');
+
+  const onlineHTML = pcs.map(pc => `
     <div class="pc-card">
       <div class="pc-card-icon">💻</div>
       <div class="pc-card-info">
         <div class="pc-card-name">${esc(pc.name)}</div>
-        <div class="pc-card-status">● Online</div>
+        <div class="pc-card-status" style="color:var(--gn)">● Online</div>
       </div>
       <div class="pc-actions">
-        <button class="pc-btn primary" onclick="startRemote('${pc.id}')">Control</button>
-        <button class="pc-btn" onclick="lockPC('${pc.id}')">🔒 Lock</button>
-        <button class="pc-btn danger" onclick="shutdownPC('${pc.id}')">⏻ Shutdown</button>
+        <button class="pc-btn primary" onclick="startRemote('${pc.id}')">🖥️ Control</button>
+        <button class="pc-btn" onclick="sendCmd('${pc.id}','lock')">🔒 Lock</button>
+        <button class="pc-btn" onclick="sendCmd('${pc.id}','unlock')">🔓 Unlock</button>
+        <button class="pc-btn danger" onclick="sendCmd('${pc.id}','shutdown')">⏻ Shutdown</button>
       </div>
     </div>`).join('');
+
+  const offlineHTML = offlinePCs.map(pc => `
+    <div class="pc-card" style="opacity:.6">
+      <div class="pc-card-icon">💻</div>
+      <div class="pc-card-info">
+        <div class="pc-card-name">${esc(pc.name)}</div>
+        <div class="pc-card-status" style="color:var(--mu)">● Offline</div>
+      </div>
+      <div class="pc-actions">
+        <button class="pc-btn" onclick="wakePC('${pc.devKey}')">⚡ Wake</button>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = onlineHTML + offlineHTML;
 }
 
-function startRemote(pcId) {
+async function startRemote(pcId) {
   const dev = droply.devices.get(pcId);
   if (!dev) return;
 
-  // Build fullscreen remote control UI
-  const overlay = document.createElement('div');
-  overlay.id = 'remote-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:1000;display:flex;flex-direction:column';
+  // Get VNC details from server
+  try {
+    const res = await fetch('/vnc/' + pcId);
+    if (!res.ok) throw new Error('VNC not registered');
+    const vnc = await res.json();
 
-  overlay.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#111;border-bottom:1px solid #222;flex-shrink:0">
-      <button onclick="stopRemote()" style="background:none;border:none;color:#3b82f6;font-size:22px;cursor:pointer">‹</button>
-      <span style="font-weight:600;flex:1">${esc(dev.name)}</span>
-      <button onclick="sendCmd('${pcId}','lock')" style="background:#1e1e1e;border:1px solid #333;color:#f0f0f0;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer">🔒 Lock</button>
-      <button onclick="sendCmd('${pcId}','shutdown')" style="background:#ef4444;border:none;color:white;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer">⏻</button>
-    </div>
-    <div style="flex:1;position:relative;overflow:hidden">
-      <canvas id="remote-canvas" style="width:100%;height:100%;object-fit:contain;display:block"></canvas>
-      <div id="remote-connecting" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#666">
-        <div style="font-size:40px">🖥️</div>
-        <div>Connecting to ${esc(dev.name)}…</div>
-      </div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-
-  // Request stream
-  droply.socket.emit('remote:command', { targetId: pcId, cmd: 'stream:start' });
-  window._remotepcId = pcId;
-
-  // Listen for screen frames
-  droply.socket.on('remote:screen', ({ frame }) => {
-    document.getElementById('remote-connecting').style.display = 'none';
-    const canvas = document.getElementById('remote-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-    };
-    img.src = 'data:image/jpeg;base64,' + frame;
-  });
-
-  // Touch input → mouse events
-  const canvas = overlay.querySelector('#remote-canvas');
-  canvas.addEventListener('click', e => {
-    const rect = canvas.getBoundingClientRect();
-    droply.socket.emit('remote:input', { targetId: pcId, type: 'click', data: {
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height
-    }});
-  });
-
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const t = e.touches[0];
-    droply.socket.emit('remote:input', { targetId: pcId, type: 'mousedown', data: {
-      x: (t.clientX - rect.left) / rect.width,
-      y: (t.clientY - rect.top) / rect.height
-    }});
-  }, {passive:false});
-
-  canvas.addEventListener('touchend', e => {
-    e.preventDefault();
-    droply.socket.emit('remote:input', { targetId: pcId, type: 'mouseup', data: {} });
-  }, {passive:false});
-
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const t = e.touches[0];
-    droply.socket.emit('remote:input', { targetId: pcId, type: 'mousemove', data: {
-      x: (t.clientX - rect.left) / rect.width,
-      y: (t.clientY - rect.top) / rect.height
-    }});
-  }, {passive:false});
+    // Open noVNC in new tab pointing to TightVNC web access
+    // TightVNC serves its own web viewer on port 5800
+    const vncUrl = 'http://' + vnc.host + ':' + vnc.wsPort;
+    window.open(vncUrl, '_blank');
+  } catch(e) {
+    alert('Could not connect to remote desktop.\nMake sure the Nexus Agent is running on the PC and TightVNC is installed.');
+  }
 }
 
 function stopRemote() {
-  if (window._remotepcId) {
-    droply.socket.emit('remote:command', { targetId: window._remotepcId, cmd: 'stream:stop' });
-    droply.socket.off('remote:screen');
-    window._remotepcId = null;
-  }
   const overlay = document.getElementById('remote-overlay');
   if (overlay) overlay.remove();
 }
@@ -695,15 +646,20 @@ function sendCmd(pcId, cmd) {
   droply.socket.emit('remote:command', { targetId: pcId, cmd });
 }
 
-function lockPC(pcId) {
-  if (!droply.socket) return;
-  droply.socket.emit('remote:command', { targetId: pcId, cmd: 'lock' });
+function wakePC(devKey) {
+  // Wake on LAN — needs MAC address stored
+  const mac = localStorage.getItem('wol:' + devKey);
+  if (!mac) {
+    const input = prompt('Enter PC MAC address for Wake on LAN (e.g. AA:BB:CC:DD:EE:FF):');
+    if (!input) return;
+    localStorage.setItem('wol:' + devKey, input.trim());
+    droply.socket.emit('wol:wake', { mac: input.trim() });
+  } else {
+    droply.socket.emit('wol:wake', { mac });
+  }
 }
 
-function shutdownPC(pcId) {
-  if (!confirm('Shut down this PC?')) return;
-  droply.socket.emit('remote:command', { targetId: pcId, cmd: 'shutdown' });
-}
+
 function closeSB(){ document.getElementById('sidebar').classList.remove('on'); document.getElementById('overlay').classList.remove('on'); }
 
 // ── PERSISTENCE ────────────────────────────────────────────────────
