@@ -153,6 +153,11 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('remote:input', { type, data });
   });
 
+  socket.on('vnc:register', ({ host, port, wsPort }) => {
+    vncTargets.set(socket.id, { host, port: port || 5900, wsPort: wsPort || 5800 });
+    console.log(`[vnc] ${socket.id} registered VNC at ${host}:${port}`);
+  });
+
   socket.on('text:send', ({ targetId, text, msgId }) => {
     io.to(targetId).emit('text:receive', { fromId: socket.id, text, msgId });
   });
@@ -170,6 +175,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    vncTargets.delete(socket.id);
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     const device = room.devices.get(socket.id);
@@ -184,6 +190,19 @@ io.on('connection', (socket) => {
 });
 
 app.get('/health', (_, res) => res.json({ ok: true, rooms: rooms.size, registered: registeredDevices.size }));
+
+// ── VNC Proxy ─────────────────────────────────────────────────────
+// When phone requests VNC access, proxy to the PC's TightVNC web port
+// The PC agent registers its local IP and VNC port with the server
+const vncTargets = new Map(); // socketId -> { host, port }
+
+// Agent registers its VNC details when it connects
+// (added to join handler below via separate event)
+app.get('/vnc/:socketId', (req, res) => {
+  const target = vncTargets.get(req.params.socketId);
+  if (!target) return res.status(404).json({ error: 'VNC target not found' });
+  res.json({ host: target.host, port: target.port, wsPort: target.wsPort });
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Nexus running on port ${PORT}`));
